@@ -1,0 +1,33 @@
+# TD build outputs and local tool state
+**/*_Runs/
+td_project/log/
+td_project/al_ip/
+td_project/.recent_user_depot.ini
+
+# Simulation caches
+**/xsim.dir/
+**/.Xil/
+**/work/
+sim/*validation*/
+**/transcript
+**/__pycache__/
+
+# Logs, waveforms and intermediate reports
+*.log
+*.logw
+*.jou
+*.pb
+*.wdb
+*.wlf
+*.timingsummary
+*.str
+
+# Bitstreams, IP backups and editor backups
+*.bit
+*.bak
+*.bak_*
+**/.IpToolIpDataBackupDir*/
+
+# Windows metadata
+Thumbs.db
+desktop.ini
