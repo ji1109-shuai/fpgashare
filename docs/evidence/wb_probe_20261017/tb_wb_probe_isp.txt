@@ -1,0 +1,33 @@
+#-----------------------------------------------------------
+# xsim v2025.2 (64-bit)
+# SW Build 6299465 on Fri Nov 14 19:35:11 GMT 2025
+# IP Build 6300035 on Fri Nov 14 10:48:45 MST 2025
+# SharedData Build 6298862 on Thu Nov 13 04:50:51 MST 2025
+# Start of session at: Sat Oct 17 19:44:12 2026
+# Process ID         : 29268
+# Current directory  : D:/FPGA_competition/7_lab_ex_2026_nosoft/lab_hd_3_osd_1/sim/wb_probe_final_validation
+# Command line       : xsim.exe -log tb_wb_probe_isp.log -mode tcl -source {xsim.dir/tb_wb_probe_isp/xsim_script.tcl}
+# Log file           : D:/FPGA_competition/7_lab_ex_2026_nosoft/lab_hd_3_osd_1/sim/wb_probe_final_validation/tb_wb_probe_isp.log
+# Journal file       : D:/FPGA_competition/7_lab_ex_2026_nosoft/lab_hd_3_osd_1/sim/wb_probe_final_validation\xsim.jou
+# Running On         : LAPTOP-1V1FD4CU
+# Platform           : Windows Server 2016 or Windows 10
+# Operating System   : 26200
+# Processor Detail   : AMD Ryzen 7 7745HX with Radeon Graphics        
+# CPU Frequency      : 3593 MHz
+# CPU Physical cores : 8
+# CPU Logical cores  : 16
+# Host memory        : 16295 MB
+# Swap memory        : 11274 MB
+# Total Virtual      : 27569 MB
+# Available Virtual  : 8085 MB
+#-----------------------------------------------------------
+source xsim.dir/tb_wb_probe_isp/xsim_script.tcl
+# xsim {tb_wb_probe_isp} -autoloadwcfg -runall
+Time resolution is 1 ps
+run -all
+ALL PASS WB probe ISP: actual 1280x720 centre 64x64, raw green/clipped reference, unity correction in BAD lock, 345600 packed video beats
+$finish called at time : 6082680 ns : File "D:/FPGA_competition/7_lab_ex_2026_nosoft/lab_hd_3_osd_1/sim/tb_wb_probe_isp.v" Line 35
+run: Time (s): cpu = 00:00:00 ; elapsed = 00:00:15 . Memory (MB): peak = 220.242 ; gain = 0.000
+exit
+INFO: xsimkernel Simulation Memory Usage: 12832 KB (Peak: 12832 KB), Simulation CPU Usage: 15015 ms
+INFO: [Common 17-206] Exiting xsim at Sat Oct 17 19:44:30 2026...

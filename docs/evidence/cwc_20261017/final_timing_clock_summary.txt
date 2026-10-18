@@ -1,0 +1,91 @@
+# Extract from 2026-10-17 final_timing.rpt; not a new build result.
+# Full source SHA256: 842f6482d5801f8ecdf6f6ac147636ba98912b2d9265004046d1ba62a254be7f
+
+Created by          : Tang Dynasty v6.2.168116
+                    : Copyright (c) 2012-2025 Anlogic Inc.
+Generated           : Sat Oct 17 18:43:36 2026
+
+Top Model           : design_top_wrapper
+Device              : PH1P35MDG324
+Speed               : 3
+STA coverage        : 95.03%
+Constraint File     : D:/FPGA_competition/7_lab_ex_2026_nosoft/lab_hd_3_osd_1/td_project/camera_to_dsi_display.sdc;
+Confidence          : Routed
+Check Corner        : Both (Slow and Fast)
+CRPR Enabled        : Yes
+Report Scheme       : 10 end point(s) per path group, 1 path(s) per end point
+
+
+Check Status
+-------------
+
+Corner   | Max      Min     
+------------------------------------
+Slow     | yes      yes     
+Fast     | yes      yes     
+
+
+Timing Status
+--------------------
+	SWNS: -0.027ns, STNS: -0.027ns
+	HWNS: 0.020ns, HTNS: 0.000ns
+	Period Check WNS: 6.088ns
+
+
+Clock Summary
+--------------------
+
+       Clock-Id:       C-Freq       Fanout   Clock-Name
+--------------------------------------------------------------------------------
+           clk0:      112.511         8415   MIPI_RX_BYTE_CLK
+           clk1:       66.667         2728   u_ph1p35_324_ddr_wrapper/u_ddr2/usr_clk
+           clk2:       75.002         1235   HDMI_PIXEL_CLK
+           clk3:       10.000          358   config_inst.cwc_tck_o
+           clk4:       24.074          188   pll_clk_24m
+           clk5:       50.000           82   sys_clk_50m
+           clk6:      375.094           36   HDMI_SERIAL_CLK
+           clk7:       25.397           28   u_ph1p35_324_ddr_wrapper/u_ddr2/mcu_clk
+           clk8:      100.000            7   pll_clk_100m
+           clk9:       66.667            6   u_ph1p35_324_ddr_wrapper/u_ddr2/ctl_clk
+          clk10:      266.667            6   u_ph1p35_324_ddr_wrapper/u_ddr2/ddr_clk
+          clk11:      450.045            1   mipi_rx_ck_pad
+          clk12:      112.511            1   u_mipi_dphy_rx_ph1p_mipiio_wrapper/u_ph1p_mipiio_rx_wrapper/u_PH1P_LOGIC_DPHY_MIPI_RX.tif_c16_in
+          clk13:       66.667            1   u_ph1p35_324_ddr_wrapper/u_ddr2/ref_clk
+          clk14:      133.333            0   config_inst.osc_clk_i
+          clk15:       10.000            0   config_inst.tck_i
+          clk16:      450.045            0   u_mipi_dphy_rx_ph1p_mipiio_wrapper/u_ph1p_mipiio_rx_wrapper/u_PH1P_LOGIC_DPHY_MIPI_RX.io_clk_pad_p
+--------------------------------------------------------------------------------
+
+       Name            Type         Rise(ns)   Fall(ns)          C-Period(ns)     C-Freq(MHz)          R-Period(ns)     R-Freq(MHz)         SWNS(ns)   STNS(ns)         HWNS(ns)   HTNS(ns)         Skew(ns)           Fanout        Max-Level        CC-From    CC-To
+       clk0       User GCLK            0.000      4.444                 8.888         112.511                 8.777         113.934            0.111      0.000            0.020      0.000            0.243             8415                9             no       no
+       clk1       User GCLK            0.000      7.500                15.000          66.667                12.927          77.357            2.073      0.000            0.021      0.000            0.225             2728               11             no       no
+       clk2       User GCLK            0.000      6.666                13.333          75.002                13.210          75.700            0.123      0.000            0.024      0.000            0.222             1235               14             no       no
+       clk3   Inferred GCLK            0.000     50.000               100.000          10.000                12.312          81.222           43.844      0.000            0.055      0.000            0.125              358               10             no       no
+       clk4   Inferred GCLK            0.000     20.769                41.538          24.074                 7.284         137.287           34.254      0.000            0.058      0.000            0.157              188                6             no       no
+       clk5   Inferred GCLK            0.000     10.000                20.000          50.000                 4.306         232.234           15.694      0.000            0.058      0.000            0.067               82                3             no       no
+       clk6   Inferred GCLK            0.000      1.333                 2.666         375.094                 1.803         554.631            0.863      0.000            0.061      0.000            0.217               36                1             no       no
+       clk7   Inferred GCLK            0.000     19.687                39.374          25.397                 9.614         104.015           29.760      0.000            0.025      0.000            0.175               28                5             no       no
+       clk8       User GCLK            0.000      5.000                10.000         100.000                 1.694         590.319            8.306      0.000            0.055      0.000            0.012                7                2             no       no
+       clk9      User MLCLK            0.000      7.500                15.000          66.667                15.000          66.667            0.000      0.000            0.000      0.000            0.222                6                0             no       no
+      clk10      User MLCLK            0.000      1.875                 3.750         266.667                 3.750         266.667            0.000      0.000            0.000      0.000            0.225                6                0             no       no
+      clk11           local            0.000      1.111                 2.222         450.045                 2.222         450.045            0.000      0.000            0.000      0.000            0.000                1                0             no       no
+      clk12           local            0.000      4.444                 8.888         112.511                 8.888         112.511            0.000      0.000            0.000      0.000            0.000                1                0             no       no
+      clk13           local            0.000      7.500                15.000          66.667                15.000          66.667            0.000      0.000            0.000      0.000            0.000                1                0             no       no
+      clk14           local            0.000      3.750                 7.500         133.333                 7.500         133.333            0.000      0.000            0.000      0.000            0.000                0                0             no       no
+      clk15           local            0.000     50.000               100.000          10.000                14.088          70.982           42.956      0.000           51.581      0.000            0.000                0                2             no       no
+      clk16           local            0.000      1.111                 2.222         450.045                 2.222         450.045            0.000      0.000            0.000      0.000            0.000                0                0             no       no
+
+Notes
+----------
+C-Period  :  constraint period
+C-Freq    :  constraint freq
+R-Period  :  report min period
+R-Freq    :  report fmax
+CC-From   :  has path(s) from cross-domain clock
+CC-To     :  has path(s) to cross-domain clock
+
+
+*   Clock R-Period data only takes intra-clock timing. SWNS/STNS/HWNS/HTNS take both intra-clock and inter-clock timing.
+*   If there is mismatch between R-Period and SWNS, check inter-clock timing of this clock as capture clock.
+*   SWNS/STNS/HWNS/HTNS of timing exception (SMCP/SMD) only counted in global Timing Status, not counted in Clock Summary.
+

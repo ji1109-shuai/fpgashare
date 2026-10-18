@@ -1,0 +1,35 @@
+#-----------------------------------------------------------
+# xsim v2025.2 (64-bit)
+# SW Build 6299465 on Fri Nov 14 19:35:11 GMT 2025
+# IP Build 6300035 on Fri Nov 14 10:48:45 MST 2025
+# SharedData Build 6298862 on Thu Nov 13 04:50:51 MST 2025
+# Start of session at: Sat Oct 17 19:45:43 2026
+# Process ID         : 28284
+# Current directory  : D:/FPGA_competition/7_lab_ex_2026_nosoft/lab_hd_3_osd_1/sim/wb_probe_osd_final_validation
+# Command line       : xsim.exe -log tb_wb_probe_overlay.log -mode tcl -source {xsim.dir/tb_wb_probe_overlay/xsim_script.tcl}
+# Log file           : D:/FPGA_competition/7_lab_ex_2026_nosoft/lab_hd_3_osd_1/sim/wb_probe_osd_final_validation/tb_wb_probe_overlay.log
+# Journal file       : D:/FPGA_competition/7_lab_ex_2026_nosoft/lab_hd_3_osd_1/sim/wb_probe_osd_final_validation\xsim.jou
+# Running On         : LAPTOP-1V1FD4CU
+# Platform           : Windows Server 2016 or Windows 10
+# Operating System   : 26200
+# Processor Detail   : AMD Ryzen 7 7745HX with Radeon Graphics        
+# CPU Frequency      : 3593 MHz
+# CPU Physical cores : 8
+# CPU Logical cores  : 16
+# Host memory        : 16295 MB
+# Swap memory        : 11274 MB
+# Total Virtual      : 27569 MB
+# Available Virtual  : 7940 MB
+#-----------------------------------------------------------
+source xsim.dir/tb_wb_probe_overlay/xsim_script.tcl
+# xsim {tb_wb_probe_overlay} -autoloadwcfg -runall
+Time resolution is 1 ps
+run -all
+PASS multi overlay frame1 pixels368640
+PASS multi overlay frame2 pixels368640
+PASS multi overlay frame3 pixels368640
+ALL PASS multi overlay: four independent labels, logo pixels, EXP/GAIN/WB, probe1 frame-held CDC, removal, candidate/invalid bounds hidden
+$finish called at time : 11094530 ns : File "D:/FPGA_competition/7_lab_ex_2026_nosoft/lab_hd_3_osd_1/sim/tb_multi_overlay.v" Line 117
+run: Time (s): cpu = 00:00:00 ; elapsed = 00:00:07 . Memory (MB): peak = 219.367 ; gain = 0.000
+exit
+INFO: [Common 17-206] Exiting xsim at Sat Oct 17 19:45:52 2026...

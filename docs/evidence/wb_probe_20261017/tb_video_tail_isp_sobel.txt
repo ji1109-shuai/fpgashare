@@ -1,0 +1,36 @@
+#-----------------------------------------------------------
+# xsim v2025.2 (64-bit)
+# SW Build 6299465 on Fri Nov 14 19:35:11 GMT 2025
+# IP Build 6300035 on Fri Nov 14 10:48:45 MST 2025
+# SharedData Build 6298862 on Thu Nov 13 04:50:51 MST 2025
+# Start of session at: Sat Oct 17 19:47:33 2026
+# Process ID         : 27980
+# Current directory  : D:/FPGA_competition/7_lab_ex_2026_nosoft/lab_hd_3_osd_1/sim/wb_probe_video_validation
+# Command line       : xsim.exe -log tb_video_tail_isp_sobel.log -mode tcl -source {xsim.dir/tb_video_tail_isp_sobel/xsim_script.tcl}
+# Log file           : D:/FPGA_competition/7_lab_ex_2026_nosoft/lab_hd_3_osd_1/sim/wb_probe_video_validation/tb_video_tail_isp_sobel.log
+# Journal file       : D:/FPGA_competition/7_lab_ex_2026_nosoft/lab_hd_3_osd_1/sim/wb_probe_video_validation\xsim.jou
+# Running On         : LAPTOP-1V1FD4CU
+# Platform           : Windows Server 2016 or Windows 10
+# Operating System   : 26200
+# Processor Detail   : AMD Ryzen 7 7745HX with Radeon Graphics        
+# CPU Frequency      : 3593 MHz
+# CPU Physical cores : 8
+# CPU Logical cores  : 16
+# Host memory        : 16295 MB
+# Swap memory        : 11274 MB
+# Total Virtual      : 27569 MB
+# Available Virtual  : 8313 MB
+#-----------------------------------------------------------
+source xsim.dir/tb_video_tail_isp_sobel/xsim_script.tcl
+# xsim {tb_video_tail_isp_sobel} -autoloadwcfg -runall
+Time resolution is 1 ps
+run -all
+RAW SOF imminent frame0 beats=230400 DDR=172442 flush=0 fifo=358
+RAW SOF imminent frame1 beats=230400 DDR=172443 flush=0 fifo=357
+RAW SOF imminent frame2 beats=230400 DDR=172443 flush=0 fifo=357
+ALL PASS: tight blank mode2 H720, 3 frames, independent pixels/DDR addresses, peak=428
+$finish called at time : 17281391688 ps : File "D:/FPGA_competition/7_lab_ex_2026_nosoft/lab_hd_3_osd_1/sim/tb_video_tail.v" Line 148
+run: Time (s): cpu = 00:00:00 ; elapsed = 00:01:01 . Memory (MB): peak = 221.863 ; gain = 0.000
+exit
+INFO: xsimkernel Simulation Memory Usage: 54164 KB (Peak: 54164 KB), Simulation CPU Usage: 59983 ms
+INFO: [Common 17-206] Exiting xsim at Sat Oct 17 19:48:36 2026...

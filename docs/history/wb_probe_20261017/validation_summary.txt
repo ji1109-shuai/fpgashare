@@ -1,0 +1,18 @@
+14 simulation tops passed. No TD synthesis, P&R, bitstream generation or hardware download performed.
+
+tb_colour_ratios: ALL PASS relative colour ratios: 25 brightness/reference/rejection cases and back-to-back two-clock alignment
+tb_wb_reference: ALL PASS WB reference: centre ROI excludes differently lit neutral surroundings; neutral-only samples, RGB means, convergence, lock, configuration invalidation, unlock/recalibrate, clipped/dark rejection
+tb_colour_diagnostic_osd: ALL PASS colour diagnostic OSD: two event CDC packets, frame hold, hex RGB/votes/area/fallback/reasons including stream error
+tb_colour_diagnostic_raster: ALL PASS diagnostic raster: 71680 pixels, 7 rows of independent expected text, hex numbers, unchanged background and output timing
+tb_colour_stream_error: ALL PASS malformed colour stream: missing EOL clears colour and diagnostic statistics, publishes STREAM
+tb_awb: === ALL PASS ===
+tb_wb_invalid: ALL PASS invalid WB: rejected/invalid locks, setting changes, unlock abort, valid-lock hold, unity fallback RGB and frame timing; audited4096
+tb_wb_probe: ALL PASS WB probe: rejected/usable/mixed raw ROI, BAD lock, actual applied gains, invalidation and 307200 unchanged video beats
+tb_wb_probe_isp: ALL PASS WB probe ISP: actual 1280x720 centre 64x64, raw green/clipped reference, unity correction in BAD lock, 345600 packed video beats
+tb_wb_probe_overlay: ALL PASS multi overlay: four independent labels, logo pixels, EXP/GAIN/WB, probe1 frame-held CDC, removal, candidate/invalid bounds hidden
+tb_multi_overlay: ALL PASS multi overlay: four independent labels, logo pixels, EXP/GAIN/WB, probe0 frame-held CDC, removal, candidate/invalid bounds hidden
+tb_isp_video_modes: ALL PASS: 8 full 720p ISP modes, reference Sobel/gray, RGB packing, final row, frame-held switches, unchanged tire recognition
+tb_video_tail_isp: ALL PASS: tight blank mode3 H720, 3 frames, independent pixels/DDR addresses, peak=428
+tb_video_tail_isp_sobel: ALL PASS: tight blank mode2 H720, 3 frames, independent pixels/DDR addresses, peak=428
+
+Limits: camera/debayer vendor models are substituted in ISP tests. Functional simulation does not verify physical timing or现场 colour reproduction.

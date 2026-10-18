@@ -1,0 +1,33 @@
+#-----------------------------------------------------------
+# xsim v2025.2 (64-bit)
+# SW Build 6299465 on Fri Nov 14 19:35:11 GMT 2025
+# IP Build 6300035 on Fri Nov 14 10:48:45 MST 2025
+# SharedData Build 6298862 on Thu Nov 13 04:50:51 MST 2025
+# Start of session at: Sun Oct 18 16:36:59 2026
+# Process ID         : 21932
+# Current directory  : D:/fpgashare/sim/migration_validation
+# Command line       : xsim.exe -log tb_wb_probe_isp.log -mode tcl -source {xsim.dir/tb_wb_probe_isp/xsim_script.tcl}
+# Log file           : D:/fpgashare/sim/migration_validation/tb_wb_probe_isp.log
+# Journal file       : D:/fpgashare/sim/migration_validation\xsim.jou
+# Running On         : LAPTOP-1V1FD4CU
+# Platform           : Windows Server 2016 or Windows 10
+# Operating System   : 26200
+# Processor Detail   : AMD Ryzen 7 7745HX with Radeon Graphics        
+# CPU Frequency      : 3593 MHz
+# CPU Physical cores : 8
+# CPU Logical cores  : 16
+# Host memory        : 16295 MB
+# Swap memory        : 11274 MB
+# Total Virtual      : 27569 MB
+# Available Virtual  : 11182 MB
+#-----------------------------------------------------------
+source xsim.dir/tb_wb_probe_isp/xsim_script.tcl
+# xsim {tb_wb_probe_isp} -autoloadwcfg -runall
+Time resolution is 1 ps
+run -all
+ALL PASS WB probe ISP: actual 1280x720 centre 64x64, raw green/clipped reference, unity correction in BAD lock, 345600 packed video beats
+$finish called at time : 6082680 ns : File "D:/fpgashare/sim/tb_wb_probe_isp.v" Line 35
+run: Time (s): cpu = 00:00:00 ; elapsed = 00:00:21 . Memory (MB): peak = 220.895 ; gain = 0.000
+exit
+INFO: xsimkernel Simulation Memory Usage: 12848 KB (Peak: 12848 KB), Simulation CPU Usage: 20108 ms
+INFO: [Common 17-206] Exiting xsim at Sun Oct 18 16:37:22 2026...

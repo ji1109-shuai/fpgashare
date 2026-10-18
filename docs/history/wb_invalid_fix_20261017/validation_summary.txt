@@ -1,0 +1,13 @@
+2026-10-17 invalid white-balance fallback fix
+No TD synthesis, place/route, bit generation or download.
+On-board physical colour accuracy is not established by these simulations.
+
+EXPECTED FAIL (before fix) tb_wb_invalid_before.log : input128/128/128 -> output85/128/85 with stale R/B gain=0x0aaaa
+PASS tb_wb_invalid.log
+PASS tb_wb_reference.log
+PASS tb_awb.log
+PASS tb_colour_ratios.log
+
+New regression: 4096 output-beat checks; rejected/invalid locks, setting invalidation, valid lock hold, unlock, divider abort.
+Actual green-cast reference converges to neutral RGB in all four lanes.
+Existing centre-reference, legacy AWB/frame timing and 25 relative-colour cases pass.

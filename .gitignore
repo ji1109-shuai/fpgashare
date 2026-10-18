@@ -3,6 +3,7 @@
 td_project/log/
 td_project/al_ip/
 td_project/.recent_user_depot.ini
+td_project/.lock.f
 
 # Simulation caches
 **/xsim.dir/

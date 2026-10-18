@@ -1,0 +1,17 @@
+Functional simulation validation (Vivado XSim 2025.2)
+TD synthesis/place-and-route/bit generation/download: NOT RUN.
+Production timing and utilization remain unverified until the user rebuilds TD.
+
+PASS tb_parts_multi.log : 23 observations: four parts, hue change, removal/reorder, calibration gate/epoch, mid-batch epoch, overflow, blank/no board, unsupported silhouettes
+PASS tb_multi_overlay.log : 3 full rasters: 1,105,920 output pixels, 4 labels, original logo, compact controls, SOF publication, removal/candidate rejection
+PASS tb_isp_multi.log : 5 production 1280x720 frames: 4 shapes/colours, high x/y coordinates, RGB lane order, removal and blank
+PASS tb_parts_colours.log : 36 single-target colour observations: all parts, highlights/shadows, independent confirmation
+PASS tb_parts_shape_pipeline.log : 262,144 signed coordinate pairs: shape pipeline drain, start/reset, completion alignment
+PASS tb_parts_colour_stability.log : Single-target colour calibration/epoch, dark/clip/mixed/fallback/RGB diagnostics
+PASS tb_parts_overlay.log : Legacy single-target parts overlay full raster and label clamps
+PASS tb_video_tail_isp.log : EDGE: 3x720p tight-blank frames, independent pixels and DDR addresses
+PASS tb_video_tail_isp_sobel.log : SOBEL: 3x720p tight-blank frames, independent pixels and DDR addresses
+
+Implementation: shared serial component/shape engine, 4 candidate slots, atomic batch CDC.
+Hole traversals are bounded to each component rectangle. Legacy video datapath and clocks unchanged.
+Production modifications are in four existing RTL files. No new TD source registration required.

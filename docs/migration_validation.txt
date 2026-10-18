@@ -1,0 +1,14 @@
+Migration verification 2026-10-18
+
+Root: D:/fpgashare
+Migrated: 3 runners + 17 test source files; direct source dependencies checked present.
+Source/config: 201 files identical to original project.
+55 migrated files recorded in docs/migration_manifest.json (~9.75 MiB).
+
+Tests freshly executed from the new repository:
+ALL PASS WB probe: rejected/usable/mixed raw ROI, BAD lock, actual applied gains, invalidation and 307200 unchanged video beats
+ALL PASS WB probe ISP: actual 1280x720 centre 64x64, raw green/clipped reference, unity correction in BAD lock, 345600 packed video beats
+ALL PASS multi overlay: four independent labels, logo pixels, EXP/GAIN/WB, probe1 frame-held CDC, removal, candidate/invalid bounds hidden
+
+Not run this migration: remaining full regression suites, TD synthesis/P&R/bit generation, hardware download.
+No production RTL changes, no git commit or push. Full Git history and all chat attachments have NOT been migrated.

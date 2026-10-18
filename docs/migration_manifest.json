@@ -1,0 +1,332 @@
+[
+  {
+    "source": "D:\\FPGA_competition\\7_lab_ex_2026_nosoft\\lab_hd_3_osd_1\\sim\\run_colour_stability_regression.ps1",
+    "destination": "sim/run_colour_stability_regression.ps1",
+    "bytes": 2494,
+    "sha256": "0a004e791f9c081dc375e3371a86be1d298e25b007e4de56f2b5c25e13aa0364"
+  },
+  {
+    "source": "D:\\FPGA_competition\\7_lab_ex_2026_nosoft\\lab_hd_3_osd_1\\sim\\run_video_modes_regression.ps1",
+    "destination": "sim/run_video_modes_regression.ps1",
+    "bytes": 2175,
+    "sha256": "d7c66808963cac33fb0aadc599b19a6fa9135bccab2c0bd5919ce935fc339fb1"
+  },
+  {
+    "source": "D:\\FPGA_competition\\7_lab_ex_2026_nosoft\\lab_hd_3_osd_1\\sim\\run_parts_regression.ps1",
+    "destination": "sim/run_parts_regression.ps1",
+    "bytes": 1679,
+    "sha256": "96a5cae67d93959c1bf26e1ca1ca118c9f3a3c8e9866a4190f6ea36511f3e80a"
+  },
+  {
+    "source": "D:\\FPGA_competition\\7_lab_ex_2026_nosoft\\lab_hd_3_osd_1\\sim\\tb_awb.v",
+    "destination": "sim/tb_awb.v",
+    "bytes": 4969,
+    "sha256": "670001af7815e6dd31408af94593b7bd34e72f33eb03b64d58b35816acd94744"
+  },
+  {
+    "source": "D:\\FPGA_competition\\7_lab_ex_2026_nosoft\\lab_hd_3_osd_1\\sim\\tb_colour_stability.v",
+    "destination": "sim/tb_colour_stability.v",
+    "bytes": 8115,
+    "sha256": "8d2c92727d5232a1bedd4d28b7da06f2d92a98b5b8a8bf0986bddb4e07085bee"
+  },
+  {
+    "source": "D:\\FPGA_competition\\7_lab_ex_2026_nosoft\\lab_hd_3_osd_1\\sim\\tb_colour_diagnostic_raster.v",
+    "destination": "sim/tb_colour_diagnostic_raster.v",
+    "bytes": 2910,
+    "sha256": "3b436771f3c05558d2c5dba0c41af3edfc0be01bd600240616c161b2360870ae"
+  },
+  {
+    "source": "D:\\FPGA_competition\\7_lab_ex_2026_nosoft\\lab_hd_3_osd_1\\sim\\tb_wb_invalid.v",
+    "destination": "sim/tb_wb_invalid.v",
+    "bytes": 4837,
+    "sha256": "cd190145d1d1343a355b26b747f238f4278b1cd23a74ebaf1c60ab10bd5d6d4e"
+  },
+  {
+    "source": "D:\\FPGA_competition\\7_lab_ex_2026_nosoft\\lab_hd_3_osd_1\\sim\\tb_wb_probe.v",
+    "destination": "sim/tb_wb_probe.v",
+    "bytes": 4332,
+    "sha256": "9b9d4f90bc5f9a86f1dd83bd271da496e84da25342dd09c39e13a1dec29d8d66"
+  },
+  {
+    "source": "D:\\FPGA_competition\\7_lab_ex_2026_nosoft\\lab_hd_3_osd_1\\sim\\tb_multi_overlay.v",
+    "destination": "sim/tb_multi_overlay.v",
+    "bytes": 6599,
+    "sha256": "46e55d7955b0c76acd480041cfc94327a9c6efc16217dae04d3fd41777eb52b6"
+  },
+  {
+    "source": "D:\\FPGA_competition\\7_lab_ex_2026_nosoft\\lab_hd_3_osd_1\\sim\\tb_wb_probe_isp.v",
+    "destination": "sim/tb_wb_probe_isp.v",
+    "bytes": 2298,
+    "sha256": "58ee8a81dc5848f7fed891913602f05e4fe97cd9f37d18fe9259b5d5c1f02acb"
+  },
+  {
+    "source": "D:\\FPGA_competition\\7_lab_ex_2026_nosoft\\lab_hd_3_osd_1\\sim\\tb_video_modes.v",
+    "destination": "sim/tb_video_modes.v",
+    "bytes": 5531,
+    "sha256": "db64d51d21123efed7d0ea2c6ac8798469b8b869f8dc789756876076fd71aa89"
+  },
+  {
+    "source": "D:\\FPGA_competition\\7_lab_ex_2026_nosoft\\lab_hd_3_osd_1\\sim\\tb_isp_threshold.v",
+    "destination": "sim/tb_isp_threshold.v",
+    "bytes": 4508,
+    "sha256": "0719f1bf2b5c44c81f02053b11e195a07c4d007113bb5ef9a83688f6c6e2ca29"
+  },
+  {
+    "source": "D:\\FPGA_competition\\7_lab_ex_2026_nosoft\\lab_hd_3_osd_1\\sim\\tb_isp_video_modes.v",
+    "destination": "sim/tb_isp_video_modes.v",
+    "bytes": 6575,
+    "sha256": "87036c06cf9f9fdf1f5279c07e2f4e9a30eeefe9cc5959231e6e65aea9fd2116"
+  },
+  {
+    "source": "D:\\FPGA_competition\\7_lab_ex_2026_nosoft\\lab_hd_3_osd_1\\sim\\tb_video_mode_osd.v",
+    "destination": "sim/tb_video_mode_osd.v",
+    "bytes": 1559,
+    "sha256": "d35c96d467a284070e71d873a0f4ed1078a2687969f15e20d379f0c8b7b06f12"
+  },
+  {
+    "source": "D:\\FPGA_competition\\7_lab_ex_2026_nosoft\\lab_hd_3_osd_1\\sim\\tb_target_overlay.v",
+    "destination": "sim/tb_target_overlay.v",
+    "bytes": 6954,
+    "sha256": "dd1dcdf9b27d7caa32ca543d187defc21419f56e38234e5088564b91547ed1ed"
+  },
+  {
+    "source": "D:\\FPGA_competition\\7_lab_ex_2026_nosoft\\lab_hd_3_osd_1\\sim\\tb_video_modes_ddr.v",
+    "destination": "sim/tb_video_modes_ddr.v",
+    "bytes": 4588,
+    "sha256": "4c4c03cb90b444ffff2c77f2c5d41d7154ef129f402d6dc53d1da0bf0422c58d"
+  },
+  {
+    "source": "D:\\FPGA_competition\\7_lab_ex_2026_nosoft\\lab_hd_3_osd_1\\sim\\tb_video_tail.v",
+    "destination": "sim/tb_video_tail.v",
+    "bytes": 8475,
+    "sha256": "57605bb62b81af41a0bf8e25a985c4df741a6d6164631ee2410b0d5026020955"
+  },
+  {
+    "source": "D:\\FPGA_competition\\7_lab_ex_2026_nosoft\\lab_hd_3_osd_1\\sim\\tb_parts.v",
+    "destination": "sim/tb_parts.v",
+    "bytes": 11931,
+    "sha256": "5d56f0d0ac683f79206f29df01117f85cb000db8be1d51882c4e6a74660fd84e"
+  },
+  {
+    "source": "D:\\FPGA_competition\\7_lab_ex_2026_nosoft\\lab_hd_3_osd_1\\sim\\tb_parts_shape_pipeline.v",
+    "destination": "sim/tb_parts_shape_pipeline.v",
+    "bytes": 9415,
+    "sha256": "80137a31563b7e933bdd646380807a1dfa51c8239104995ddbe1b176b5761c40"
+  },
+  {
+    "source": "D:\\FPGA_competition\\7_lab_ex_2026_nosoft\\lab_hd_3_osd_1\\sim\\tb_parts_multi.v",
+    "destination": "sim/tb_parts_multi.v",
+    "bytes": 6971,
+    "sha256": "cf04ae7886ff3b11a8a4d870282d4c4641931a00c4d4ac641c6d9eaf5ba3c0cd"
+  },
+  {
+    "source": "D:\\FPGA_competition\\7_lab_ex_2026_nosoft\\lab_hd_3_osd_1\\release\\wb_probe_20261017\\README.md",
+    "destination": "docs/history/wb_probe_20261017/README.md",
+    "bytes": 6773,
+    "sha256": "be45208cf896eb320197ab524d240a7963d5e7e4ed75605ebd09fef6a060e601"
+  },
+  {
+    "source": "D:\\FPGA_competition\\7_lab_ex_2026_nosoft\\lab_hd_3_osd_1\\release\\wb_probe_20261017\\validation_summary.txt",
+    "destination": "docs/history/wb_probe_20261017/validation_summary.txt",
+    "bytes": 2222,
+    "sha256": "3cdb32c32ccd59ec604eb9fe6f09acd027a394e68595f23d109953261bf42383"
+  },
+  {
+    "source": "D:\\FPGA_competition\\7_lab_ex_2026_nosoft\\lab_hd_3_osd_1\\release\\wb_invalid_fix_20261017\\README.md",
+    "destination": "docs/history/wb_invalid_fix_20261017/README.md",
+    "bytes": 4637,
+    "sha256": "92552672fa8f85a34edfe802f514a3d2ade9e3b0f5c8aa8cc95e928835c078c3"
+  },
+  {
+    "source": "D:\\FPGA_competition\\7_lab_ex_2026_nosoft\\lab_hd_3_osd_1\\release\\wb_invalid_fix_20261017\\validation_summary.txt",
+    "destination": "docs/history/wb_invalid_fix_20261017/validation_summary.txt",
+    "bytes": 687,
+    "sha256": "a3d628b0be9adfb10b2b7f8d04b93bb17aced968b4b27610fa7d77fad907342d"
+  },
+  {
+    "source": "D:\\FPGA_competition\\7_lab_ex_2026_nosoft\\lab_hd_3_osd_1\\release\\cwc_recovery_20261017\\README.md",
+    "destination": "docs/history/cwc_recovery_20261017/README.md",
+    "bytes": 2830,
+    "sha256": "8ad4b65dd3952547b2e4c42354f0292a4ad731f4f243243ab700cc831d1d8315"
+  },
+  {
+    "source": "D:\\FPGA_competition\\7_lab_ex_2026_nosoft\\lab_hd_3_osd_1\\release\\multi_parts_20261017\\README.md",
+    "destination": "docs/history/multi_parts_20261017/README.md",
+    "bytes": 5491,
+    "sha256": "ea6d5fabd9495077a590237b7a04b30a9386f0b550312237fc40cc756add4aa0"
+  },
+  {
+    "source": "D:\\FPGA_competition\\7_lab_ex_2026_nosoft\\lab_hd_3_osd_1\\release\\multi_parts_20261017\\validation_summary.txt",
+    "destination": "docs/history/multi_parts_20261017/validation_summary.txt",
+    "bytes": 1626,
+    "sha256": "5c319ecdd445cc75bb47a0dad8838e739b04a45ae37010e4479fddd982496393"
+  },
+  {
+    "source": "D:\\FPGA_competition\\7_lab_ex_2026_nosoft\\lab_hd_3_osd_1\\release\\cwc_recovery_20261017\\before\\camera_to_dsi_display_exception.timing",
+    "destination": "docs/evidence/cwc_20261017/camera_to_dsi_display_exception.timing",
+    "bytes": 212169,
+    "sha256": "7c32dd9ca39d156c26913d5a185c0f826b3ad952d163095ad162f1b33ff38efe"
+  },
+  {
+    "source": "D:\\FPGA_competition\\7_lab_ex_2026_nosoft\\lab_hd_3_osd_1\\release\\cwc_recovery_20261017\\before\\camera_to_dsi_display_phy.area",
+    "destination": "docs/evidence/cwc_20261017/camera_to_dsi_display_phy.area",
+    "bytes": 61473,
+    "sha256": "6bef422b54a99b58f189fd5771f5e5d5f36edca19df5c746dc1a081e22be873a"
+  },
+  {
+    "source": "D:\\FPGA_competition\\SC500CS手册精读01_I2C寄存器操作.md",
+    "destination": "docs/reference/notes/SC500CS手册精读01_I2C寄存器操作.md",
+    "bytes": 5439,
+    "sha256": "a00e68cede2d99fb95e2e702f967023f640f13d2a866d0de3ba70eb3da584ac3"
+  },
+  {
+    "source": "D:\\FPGA_competition\\SC500CS手册精读02_例程I2C代码逐文件解读.md",
+    "destination": "docs/reference/notes/SC500CS手册精读02_例程I2C代码逐文件解读.md",
+    "bytes": 7098,
+    "sha256": "62f550e214b03a863d01752169770c1f7b31e597a882e653014a4e7f8de01824"
+  },
+  {
+    "source": "D:\\FPGA_competition\\SC500CS手册精读03_图像算法插入点指南.md",
+    "destination": "docs/reference/notes/SC500CS手册精读03_图像算法插入点指南.md",
+    "bytes": 6099,
+    "sha256": "d1c687829565d837c48022c76cdabc6241df92b35387b4b39db2be26df92e18f"
+  },
+  {
+    "source": "D:\\FPGA_competition\\MIPI协议原理精读_差分对到像素流的完整推导.md",
+    "destination": "docs/reference/notes/MIPI协议原理精读_差分对到像素流的完整推导.md",
+    "bytes": 20269,
+    "sha256": "6de84554c29d6d47b5c09a5a66e37b921c569fb0c76b8c3063f0fd1ce6a167e8"
+  },
+  {
+    "source": "D:\\FPGA_competition\\FPGA数据流解读_手册与代码对照.md",
+    "destination": "docs/reference/notes/FPGA数据流解读_手册与代码对照.md",
+    "bytes": 8864,
+    "sha256": "25ffda19348f7d9fb8b72e5f24c769ff11eaff4e9b3d0fb9f7e171eed589f6b7"
+  },
+  {
+    "source": "D:\\FPGA_competition\\零件视觉配套系统_架构与实施建议_20261013.md",
+    "destination": "docs/reference/notes/零件视觉配套系统_架构与实施建议_20261013.md",
+    "bytes": 14032,
+    "sha256": "8e244931d3b3f2c69efe4afb67781dec53ac50af7bc6cce31acf02d1f994b2ba"
+  },
+  {
+    "source": "D:\\FPGA_competition\\4_芯片手册\\SC500摄像头\\SC500CS_数据手册_V1.8.pdf",
+    "destination": "docs/reference/hardware/SC500CS_数据手册_V1.8.pdf",
+    "bytes": 2806248,
+    "sha256": "db987c3c1a56e5be1dd247827ce53dae9afdd3a7abf25643c351438dba37e814"
+  },
+  {
+    "source": "D:\\FPGA_competition\\4_芯片手册\\SC500摄像头\\SC500CS板原理图.pdf",
+    "destination": "docs/reference/hardware/SC500CS板原理图.pdf",
+    "bytes": 155824,
+    "sha256": "0832b598d38a5db8a945b883853376278b4943607d4dd2bdbcbb178a7352fae2"
+  },
+  {
+    "source": "D:\\FPGA_competition\\3_原理图\\开发板原理图\\HX1P35B_FT_40P_1.pdf",
+    "destination": "docs/reference/hardware/board/HX1P35B_FT_40P_1.pdf",
+    "bytes": 98691,
+    "sha256": "f2e94b9c419c21eda7fbcf5b2c470b8744e6af6c33adc370bf0a2ff00cee0618"
+  },
+  {
+    "source": "D:\\FPGA_competition\\3_原理图\\开发板原理图\\HX1P35B_FT_40P_10.pdf",
+    "destination": "docs/reference/hardware/board/HX1P35B_FT_40P_10.pdf",
+    "bytes": 71483,
+    "sha256": "733fd56e68cff04d62daa3c96e7cbfe80d24498a81e20406354cbf4e36a875fa"
+  },
+  {
+    "source": "D:\\FPGA_competition\\3_原理图\\开发板原理图\\HX1P35B_FT_40P_2.pdf",
+    "destination": "docs/reference/hardware/board/HX1P35B_FT_40P_2.pdf",
+    "bytes": 52446,
+    "sha256": "539284dbf41f47e293fb2232a72dbbad7008dee438b62ed316d6bc9f4932a2e7"
+  },
+  {
+    "source": "D:\\FPGA_competition\\3_原理图\\开发板原理图\\HX1P35B_FT_40P_3.pdf",
+    "destination": "docs/reference/hardware/board/HX1P35B_FT_40P_3.pdf",
+    "bytes": 46624,
+    "sha256": "7e122628feade09ffc39d76eca112fa3504a14aadd02e07ba62a227595f4171d"
+  },
+  {
+    "source": "D:\\FPGA_competition\\3_原理图\\开发板原理图\\HX1P35B_FT_40P_4.pdf",
+    "destination": "docs/reference/hardware/board/HX1P35B_FT_40P_4.pdf",
+    "bytes": 97794,
+    "sha256": "8ff685d5254cd470bc2c8437e777ba5ac94681093fbc65b4fedf4c94598ce3ed"
+  },
+  {
+    "source": "D:\\FPGA_competition\\3_原理图\\开发板原理图\\HX1P35B_FT_40P_5.pdf",
+    "destination": "docs/reference/hardware/board/HX1P35B_FT_40P_5.pdf",
+    "bytes": 93944,
+    "sha256": "21c5ca5581b83d481a43b9fd94ef4c1c814a5b1c1a60f6bf9737acba95637122"
+  },
+  {
+    "source": "D:\\FPGA_competition\\3_原理图\\开发板原理图\\HX1P35B_FT_40P_6.pdf",
+    "destination": "docs/reference/hardware/board/HX1P35B_FT_40P_6.pdf",
+    "bytes": 97495,
+    "sha256": "36fcb60d96a1c2d93ae5744254be10356d280708ac1d0201d761dcffb6d7d610"
+  },
+  {
+    "source": "D:\\FPGA_competition\\3_原理图\\开发板原理图\\HX1P35B_FT_40P_7.pdf",
+    "destination": "docs/reference/hardware/board/HX1P35B_FT_40P_7.pdf",
+    "bytes": 120195,
+    "sha256": "0abd6cb77d9597f5fea904d2d3616f42267a6d3d10a725b9f42c8b47f4c0e900"
+  },
+  {
+    "source": "D:\\FPGA_competition\\3_原理图\\开发板原理图\\HX1P35B_FT_40P_8.pdf",
+    "destination": "docs/reference/hardware/board/HX1P35B_FT_40P_8.pdf",
+    "bytes": 98697,
+    "sha256": "403e6dc2bf4952c060f3f5b5e0ccc9533e840e2c096c7c9563bc1a4a654c935c"
+  },
+  {
+    "source": "D:\\FPGA_competition\\3_原理图\\开发板原理图\\HX1P35B_FT_40P_9.pdf",
+    "destination": "docs/reference/hardware/board/HX1P35B_FT_40P_9.pdf",
+    "bytes": 141280,
+    "sha256": "139882bd3050d459b23d7226376e809cafb82f11d25306a15192eabfe0aa77f4"
+  },
+  {
+    "source": "D:\\FPGA_competition\\9_康芯开发板使用手册及实验平台\\新HX1P35A开发板手册-HDL版2604.pdf",
+    "destination": "docs/reference/hardware/新HX1P35A开发板手册-HDL版2604.pdf",
+    "bytes": 2590885,
+    "sha256": "7b7a65b0212db35cb89a5dff6e80ae6cedf4ef697c0e61e20829c0dc801468d4"
+  },
+  {
+    "source": "D:\\FPGA_competition\\7_lab_ex_2026_nosoft\\lab_hd_3_osd_1\\release\\wb_probe_20261017\\logs\\tb_wb_probe.log",
+    "destination": "docs/evidence/wb_probe_20261017/tb_wb_probe.txt",
+    "bytes": 1698,
+    "sha256": "fca9b4c4f758a792a7330b20bec81ad4174fa03790df26637a069d080e52d3c3"
+  },
+  {
+    "source": "D:\\FPGA_competition\\7_lab_ex_2026_nosoft\\lab_hd_3_osd_1\\release\\wb_probe_20261017\\logs\\tb_wb_probe_isp.log",
+    "destination": "docs/evidence/wb_probe_20261017/tb_wb_probe_isp.txt",
+    "bytes": 1928,
+    "sha256": "bada04a0f39a31390a53b2a9ee4231fcae77f880e0677a973311ed5ec7832afd"
+  },
+  {
+    "source": "D:\\FPGA_competition\\7_lab_ex_2026_nosoft\\lab_hd_3_osd_1\\release\\wb_probe_20261017\\logs\\tb_wb_probe_overlay.log",
+    "destination": "docs/evidence/wb_probe_20261017/tb_wb_probe_overlay.txt",
+    "bytes": 1981,
+    "sha256": "d759e08babe89209ca3ddacd4a65dd2a1da6555477d46ccc0fac2a9a4d889c35"
+  },
+  {
+    "source": "D:\\FPGA_competition\\7_lab_ex_2026_nosoft\\lab_hd_3_osd_1\\release\\wb_probe_20261017\\logs\\tb_multi_overlay.log",
+    "destination": "docs/evidence/wb_probe_20261017/tb_multi_overlay.txt",
+    "bytes": 1965,
+    "sha256": "a206ba9e806018ce1223bccf03559f617194e2c2779d282749b6a207790c1456"
+  },
+  {
+    "source": "D:\\FPGA_competition\\7_lab_ex_2026_nosoft\\lab_hd_3_osd_1\\release\\wb_probe_20261017\\logs\\tb_video_tail_isp.log",
+    "destination": "docs/evidence/wb_probe_20261017/tb_video_tail_isp.txt",
+    "bytes": 2085,
+    "sha256": "145bb853b739c91a529a72ed93a8664c76c60a9a49d442df5a018e2b721a5376"
+  },
+  {
+    "source": "D:\\FPGA_competition\\7_lab_ex_2026_nosoft\\lab_hd_3_osd_1\\release\\wb_probe_20261017\\logs\\tb_video_tail_isp_sobel.log",
+    "destination": "docs/evidence/wb_probe_20261017/tb_video_tail_isp_sobel.txt",
+    "bytes": 2115,
+    "sha256": "5de73e43b6e2d93f04c1c49a966daab6a1cc924913483e57bafc61b1a03b7c11"
+  },
+  {
+    "source": "D:\\AN_LU\\doc\\SWUG\\SWUG111_Debug_Tools_User_Guide.pdf",
+    "destination": "docs/reference/tools/SWUG111_Debug_Tools_User_Guide.pdf",
+    "bytes": 3273903,
+    "sha256": "eafb869744cfe14faf741c7061b9964d1ccb47bea5ee7135950f3e12ee5c6877"
+  }
+]
