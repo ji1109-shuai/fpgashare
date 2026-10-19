@@ -1,0 +1,48 @@
+Automatic neutral-sample WB functional regression: 2026-10-19
+Base commit: 4f32b30845e45f3b2d824be985bd3f7fefe208f0
+Change: replace fixed-unity/manual-centre prerequisite with automatic neutral samples and last-valid-gain hold.
+No TD synthesis, P&R, bit generation/download, hardware colour acceptance or timing sign-off.
+Real AWB and BGGR interpolation are tested; some ISP tests replace demosaic and vendor RAM.
+Neutral-candidate selection assumes usable neutral areas; it is not arbitrary-light/background colour constancy.
+
+tb_awb_auto_reference: ALL PASS auto reference: green-cast board corrected, centre red/black/clipped rejected, old/unity green reproduced, boot SW4 ignored, last valid gains held, changed illumination reacquired, 378880 RGB beats/5920 lines, 3456 neutral output checks
+tb_bayer_neutral: ALL PASS production BGGR interpolation: 256 neutral levels, 256 colour patches, both row parities, bubbles, four lanes; 2048 reconstructed pixels
+tb_auto_wb_isp: ALL PASS automatic WB ISP: acquired despite red centre and SW4 high, HOLD after clipping/EXP event/SW4, 1382400 audited RGB beats, 1036800 packed words/4320 lines, centre diagnostic not overflowed
+tb_auto_wb_overlay: ALL PASS multi overlay: four independent labels, logo pixels, EXP/GAIN/WB, probe0 frame-held CDC, removal, candidate/invalid bounds hidden
+tb_colour_ratios: ALL PASS relative colour ratios: 25 brightness/reference/rejection cases and back-to-back two-clock alignment
+tb_wb_reference: ALL PASS WB reference: centre ROI excludes differently lit neutral surroundings; neutral-only samples, RGB means, convergence, lock, configuration invalidation, unlock/recalibrate, clipped/dark rejection
+tb_colour_diagnostic_osd: ALL PASS colour diagnostic OSD: two event CDC packets, frame hold, hex RGB/votes/area/fallback/reasons including stream error
+tb_colour_diagnostic_raster: ALL PASS diagnostic raster: 71680 pixels, 7 rows of independent expected text, hex numbers, unchanged background and output timing
+tb_colour_stream_error: ALL PASS malformed colour stream: missing EOL clears colour and diagnostic statistics, publishes STREAM
+tb_awb: === ALL PASS ===
+tb_wb_invalid: ALL PASS invalid WB: rejected/invalid locks, setting changes, unlock abort, valid-lock hold, unity fallback RGB and frame timing; audited4096
+tb_wb_probe: ALL PASS WB probe: rejected/usable/mixed raw ROI, BAD lock, actual applied gains, invalidation and 307200 unchanged video beats
+tb_wb_probe_overlay: ALL PASS multi overlay: four independent labels, logo pixels, EXP/GAIN/WB, probe1 frame-held CDC, removal, candidate/invalid bounds hidden
+tb_multi_overlay: ALL PASS multi overlay: four independent labels, logo pixels, EXP/GAIN/WB, probe0 frame-held CDC, removal, candidate/invalid bounds hidden
+tb_wb_probe_isp: ALL PASS WB probe ISP: actual 1280x720 centre 64x64, raw green/clipped reference, unity correction in BAD lock, 345600 packed video beats
+tb_video_modes: ALL PASS: 20x9 RGB/gray/Sobel/edge, pixel reference, gaps, borders, final-row drain, frame-held mode and reset
+tb_video_modes_onebeat: ALL PASS: 4x3 RGB/gray/Sobel/edge, pixel reference, gaps, borders, final-row drain, frame-held mode and reset
+tb_video_modes_720p: ALL PASS: 1280x720 RGB/gray/Sobel/edge, pixel reference, gaps, borders, final-row drain, frame-held mode and reset
+tb_isp_video_modes: ALL PASS: 8 full 720p ISP modes, reference Sobel/gray, RGB packing, final row, frame-held switches, unchanged tire recognition
+tb_video_mode_osd: ALL PASS: frame-held mode CDC and all 8 mode OSD words
+tb_target_overlay: ALL PASS: clean target-only raster, no candidate/debug frames, BLACK/RGB shape labels, label clamps, mode header, removal and frame-held CDC
+tb_video_tail_isp: ALL PASS: tight blank mode3 H720, 3 frames, independent pixels/DDR addresses, peak=428
+tb_video_tail_isp_sobel: ALL PASS: tight blank mode2 H720, 3 frames, independent pixels/DDR addresses, peak=428
+tb_parts_multi_no_calibration: ALL PASS multi: four shapes/colours, independent confirmation, hue change, removal/reorder, calibration epoch, overflow, empty/no board, unsupported silhouette
+
+All 24 unique tops passed (15 colour/ISP/OSD, 8 video/DDR, 1 multi-target).
+Final startup fixture rerun: 378880 RGB beats, 5920 lines, 3456 neutral background checks.
+Actual-size ISP: 1382400 RGB beats checked, 1036800 packed words, 4320 lines across six 1280x720 frames.
+BGGR: 2048 reconstructed pixels, both row parities, neutral levels and colour patches; not full live RAW transport.
+Fixed-unity and old-centre paths reproduce green on the synthetic input; auto converges without forced gains.
+Automatic missing-reference HOLD, initial WAIT, changed-light reacquisition, SW4 and EXP events verified.
+Legacy hand-calibration regressions retained and passed; they are not current production operating instructions.
+Frame heads/tails and independent DDR-address continuity regressions passed.
+Field green-cast root cause and colour accuracy still require real hardware evidence.
+Logs and caches stay in ignored sim/*validation*/ directories.
+
+SHA256 of production sources:
+541def7af3e862f0fc9af41dd330bd299c21787304e567bab20bf91e4edd6dec  user_source/hdl_source/awb.v
+647863ea9ddff1e5b59a493591c5aeae70a68424ed976eb4e34b856a3a5f6d43  user_source/hdl_source/isp/isp_top.v
+4e0a5c50bec60370bb6b85d1edbebfaa63400076be1d081e48f9902511a484ef  user_source/hdl_source/hdmi_mixer.v
+27f5af0d01e88a038f01b21e8d9cbc71f1f34d362862c28b1fbee0e6bf11126f  user_source/hdl_source/design_top_wrapper.v

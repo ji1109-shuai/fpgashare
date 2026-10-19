@@ -6,7 +6,8 @@ module isp_top #(
     parameter DEBUG_CAPTURE = 0,
     parameter VIDEO_MODES = 0,      // wrapper enables new RGB/GRAY/SOBEL/EDGE preview
     parameter COLOR_STABILITY = 0,
-    parameter MULTI_TARGETS = 0
+    parameter MULTI_TARGETS = 0,
+    parameter AUTO_WHITE_BALANCE = 0 // automatic neutral samples; independent of SW4
 )(
     input 			axi4s_video_aclk,
     input 			I_rst_n			,
@@ -175,9 +176,11 @@ end
 awb #(
     .IMG_HEIGHT(720),
     .IMG_WIDTH (1280),
-    .REFERENCE_ONLY(COLOR_STABILITY && PARTS_MODE),
-    .REFERENCE_WINDOW(COLOR_STABILITY && PARTS_MODE ? 64:0),
-    .DIAGNOSTICS(COLOR_STABILITY && PARTS_MODE)
+    .REFERENCE_ONLY((COLOR_STABILITY || AUTO_WHITE_BALANCE) && PARTS_MODE),
+    .REFERENCE_WINDOW(!AUTO_WHITE_BALANCE && COLOR_STABILITY && PARTS_MODE ? 64:0),
+    .MIN_REFERENCE_SAMPLES(AUTO_WHITE_BALANCE ? 1024:128),
+    .DIAGNOSTICS((COLOR_STABILITY || AUTO_WHITE_BALANCE) && PARTS_MODE),
+    .AUTO_REFERENCE(AUTO_WHITE_BALANCE && PARTS_MODE)
 ) u_awb (
     .I_clk   (axi4s_video_aclk),
     .I_rst_n (I_rst_n),

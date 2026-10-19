@@ -15,7 +15,8 @@ module hdmi_mixer #(
     parameter integer SHOW_LOGO = 0,
     parameter integer COMPACT_DIAGNOSTICS = 0,
     parameter integer MULTI_TARGETS = 0,
-    parameter integer WB_DIAGNOSTICS = 0
+    parameter integer WB_DIAGNOSTICS = 0,
+    parameter integer AUTO_WHITE_BALANCE = 0
 )(
     input wire        I_clk,
     input wire        I_rst_n,
@@ -245,6 +246,8 @@ module hdmi_mixer #(
                     text_bits=reference_display[26] ? "WB:LOCK REF:WAIT":"WB:CAL  REF:WAIT";
                     if(reference_display[25:24]==3) text_bits=reference_display[26] ? "WB:LOCK REF:OK  ":"WB:CAL  REF:OK  ";
                     else if(!reference_display[24]) text_bits=reference_display[26] ? "WB:LOCK REF:BAD ":"WB:CAL  REF:BAD ";
+                    if(AUTO_WHITE_BALANCE) text_bits=!reference_display[26] ? "WB:WAIT         ":
+                        reference_display[24] ? "WB:AUTO         ":"WB:HOLD         ";
                 end
                 1:begin
                     text_bits="REF:------      ";
@@ -524,7 +527,7 @@ module hdmi_mixer #(
         assign multi_lx[target_slot]=x0+TARGET_LABEL_W<=IMG_WIDTH ? x0:IMG_WIDTH-TARGET_LABEL_W;
         assign multi_ly[target_slot]=y0>=22 ? y0-12'd22:y1+12'd22<IMG_HEIGHT ? y1+12'd2:12'd2;
         assign multi_shape[target_slot]=item[54:52];
-        assign multi_colour[target_slot]=COLOR_DIAGNOSTICS && reference_display[26:24]!=3'b111 ? 3'd0:item[51:49];
+        assign multi_colour[target_slot]=COLOR_DIAGNOSTICS && !AUTO_WHITE_BALANCE && reference_display[26:24]!=3'b111 ? 3'd0:item[51:49];
         assign multi_box_hits[target_slot]=active && S_video_de_2d && S_x_2d>=x0 && S_x_2d<=x1 && S_y_2d>=y0 && S_y_2d<=y1 &&
             (S_x_2d-x0<2 || x1-S_x_2d<2 || S_y_2d-y0<2 || y1-S_y_2d<2);
         assign multi_label_hits[target_slot]=active && TARGET_ONLY && S_video_de_2d &&

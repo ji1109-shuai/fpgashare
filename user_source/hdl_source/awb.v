@@ -26,7 +26,8 @@ module awb  #(
     parameter REFERENCE_ONLY = 0,
     parameter REFERENCE_WINDOW = 0,
     parameter MIN_REFERENCE_SAMPLES = 128,
-    parameter DIAGNOSTICS = 0 // central power-of-two ROI, at most 1024 samples
+    parameter DIAGNOSTICS = 0, // central power-of-two ROI, at most 1024 samples
+    parameter AUTO_REFERENCE = 0 // use with REFERENCE_ONLY=1; no card/lock prerequisite
 )
 (
     input                   I_clk  ,
@@ -36,7 +37,7 @@ module awb  #(
     input                   I_tuser  ,
     input [95:0]            I_tdata  ,
     input                   I_tvalid ,
-    input                   I_gain_freeze, // 1=冻结白平衡增益（保持当前值，不再更新）
+    input                   I_gain_freeze, // manual mode freeze; ignored by AUTO_REFERENCE
     output                  I_tready ,
 
     output                  O_tlast  ,
@@ -45,7 +46,7 @@ module awb  #(
     output                  O_tvalid ,
     input                   O_tready,
     input                   I_cal_reset,
-    output reg [31:0]       O_reference, // {5'b0,locked,ready,sample_valid,raw_R,raw_G,raw_B}
+    output reg [31:0]       O_reference, // {5'b0,locked/auto_has_solution,ready,sample_valid,raw_R,raw_G,raw_B}
     output reg              O_reference_upd,
     output [127:0]           O_diagnostics,
     output                  O_diagnostics_upd
@@ -99,11 +100,12 @@ module awb  #(
         end
     end
     reg freeze_d;
-    wire calibration_reset=REFERENCE_ONLY && I_cal_reset;
-    wire unlock_edge=freeze_d && !I_gain_freeze;
+    wire gain_frozen=!AUTO_REFERENCE && I_gain_freeze;
+    wire calibration_reset=REFERENCE_ONLY && !AUTO_REFERENCE && I_cal_reset;
+    wire unlock_edge=freeze_d && !gain_frozen;
     wire calibration_abort=REFERENCE_ONLY && (calibration_reset || unlock_edge);
     always @(posedge I_clk or negedge I_rst_n)
-        if(!I_rst_n) freeze_d<=0; else freeze_d<=I_gain_freeze;
+        if(!I_rst_n) freeze_d<=0; else freeze_d<=gain_frozen;
 
 /*****************************************************************
                           帧统计（像素0抽样）
@@ -128,12 +130,13 @@ module awb  #(
     wire [7:0] ref_max=ref_max_rg>ref_b ? ref_max_rg:ref_b;
     wire [7:0] ref_min_rg=ref_r<ref_g ? ref_r:ref_g;
     wire [7:0] ref_min=ref_min_rg<ref_b ? ref_min_rg:ref_b;
-    // Calibration is performed with an EMPTY neutral board/card. Reject
-    // outside-black, strongly coloured samples and any clipped channel.
+    // Manual mode samples a neutral card ROI. Automatic mode searches the
+    // scene for candidate neutral pixels. Both reject outside-black, strongly
+    // coloured samples and clipped channels; neither can recover blown highlights.
     wire reference_sample=reference_roi_d0 && ref_min>=64 && ref_max<=240 && {1'b0,ref_max}<={ref_min,1'b0};
-    wire rejected_reference=REFERENCE_ONLY && sof_edge && frame_seen &&
-        ref_count<MIN_REFERENCE_SAMPLES && !I_gain_freeze;
-    wire invalid_lock=REFERENCE_ONLY && !freeze_d && I_gain_freeze && O_reference[25:24]!=2'b11;
+    wire rejected_reference=REFERENCE_ONLY && !AUTO_REFERENCE && sof_edge && frame_seen &&
+        ref_count<MIN_REFERENCE_SAMPLES && !gain_frozen;
+    wire invalid_lock=REFERENCE_ONLY && !freeze_d && gain_frozen && O_reference[25:24]!=2'b11;
     always @(posedge I_clk or negedge I_rst_n) begin
         if (!I_rst_n) begin
             sum_r <= REFERENCE_ONLY ? 32'd0:32'd1;
@@ -267,7 +270,7 @@ module awb  #(
             gain_b_tgt <= GAIN_UNITY;
         end else if(calibration_abort || rejected_reference || invalid_lock) begin
             gain_r_tgt<=GAIN_UNITY;gain_b_tgt<=GAIN_UNITY;
-        end else if (done_v && done_sel<2 && !I_gain_freeze && !calibration_reset) begin
+        end else if (done_v && done_sel<2 && !gain_frozen && !calibration_reset) begin
             if (done_sel==1) gain_b_tgt <= g_next[19:0];
             else          gain_r_tgt <= g_next[19:0];
         end
@@ -281,10 +284,10 @@ module awb  #(
             // Invalid reference used to clear only the colour label while
             // leaving obsolete R/B gains active in the RGB picture. Bypass
             // that correction at SOF; keep every pixel of a frame consistent.
-            if(REFERENCE_ONLY && (calibration_reset ||
-                (I_gain_freeze ? O_reference[25:24]!=2'b11:!O_reference[24]))) begin
+            if(REFERENCE_ONLY && !AUTO_REFERENCE && (calibration_reset ||
+                (gain_frozen ? O_reference[25:24]!=2'b11:!O_reference[24]))) begin
                 in_r_r1<=GAIN_UNITY;in_b_r1<=GAIN_UNITY;
-            end else if(!REFERENCE_ONLY || !I_gain_freeze) begin
+            end else if(!REFERENCE_ONLY || !gain_frozen) begin
                 in_r_r1 <= gain_r_tgt;
                 in_b_r1 <= gain_b_tgt;
             end
@@ -297,7 +300,11 @@ module awb  #(
     // accepted[63:53], clipped[52:42], dark[41:31], cast[30:20],
     // total[19:9], reason[8:5], reserved[4:0]. Gains belong to the
     // frame just measured, not to the next calibration target.
-    localparam DIAG_SAMPLES=REF_W*REF_H/4;
+    // AUTO_REFERENCE searches the image, but the readable RAW observer stays
+    // at the original centre 64x64: keep its counters/packet widths unchanged.
+    localparam DIAG_W=AUTO_REFERENCE && IMG_WIDTH>64 ? 64:REF_W;
+    localparam DIAG_H=AUTO_REFERENCE && IMG_HEIGHT>64 ? 64:REF_H;
+    localparam DIAG_SAMPLES=DIAG_W*DIAG_H/4;
     localparam DIAG_SHIFT=$clog2(DIAG_SAMPLES);
     generate if(DIAGNOSTICS && REFERENCE_ONLY) begin : g_diagnostics
         reg [127:0] packet;
@@ -307,6 +314,7 @@ module awb  #(
         reg [17:0] raw_sum_r,raw_sum_g,raw_sum_b;
         reg [10:0] total,accepted,clipped,dark,cast;
         reg seen;
+        reg diag_roi_d0;
         wire too_bright=ref_max>240;
         wire too_dark=ref_min<64;
         wire too_coloured={1'b0,ref_max}>{ref_min,1'b0};
@@ -316,15 +324,18 @@ module awb  #(
         // The reason describes SAMPLE suitability, not WB lock readiness.
         // If insufficient, report the largest mutually exclusive reject bin.
         wire [3:0] reason=total==0 ? 4'd1 : total!=DIAG_SAMPLES ? 4'd6 :
-            accepted>=MIN_REFERENCE_SAMPLES ? 4'd0 :
+            accepted>=(AUTO_REFERENCE ? 128:MIN_REFERENCE_SAMPLES) ? 4'd0 :
             clipped>=dark && clipped>=cast && clipped!=0 ? 4'd2 :
             dark>=cast && dark!=0 ? 4'd3 : cast!=0 ? 4'd4 : 4'd5;
         always @(posedge I_clk or negedge I_rst_n) begin
             if(!I_rst_n) begin
                 raw_sum_r<=0;raw_sum_g<=0;raw_sum_b<=0;
                 total<=0;accepted<=0;clipped<=0;dark<=0;cast<=0;seen<=0;
-                packet<=0;update<=0;
+                packet<=0;update<=0;diag_roi_d0<=0;
             end else begin
+                diag_roi_d0<=I_tvalid && reference_cx>=(IMG_WIDTH-DIAG_W)/2 &&
+                    reference_cx<(IMG_WIDTH+DIAG_W)/2 && reference_cy>=(IMG_HEIGHT-DIAG_H)/2 &&
+                    reference_cy<(IMG_HEIGHT+DIAG_H)/2;
                 if(sof_edge) begin
                     if(seen) begin
                         packet<={raw_mean_r,raw_mean_g,raw_mean_b,
@@ -336,7 +347,7 @@ module awb  #(
                 if(I_tuser) begin
                     raw_sum_r<=0;raw_sum_g<=0;raw_sum_b<=0;
                     total<=0;accepted<=0;clipped<=0;dark<=0;cast<=0;
-                end else if(I_tvalid_r0 && reference_roi_d0) begin
+                end else if(I_tvalid_r0 && diag_roi_d0) begin
                     raw_sum_r<=raw_sum_r+ref_r;
                     raw_sum_g<=raw_sum_g+ref_g;
                     raw_sum_b<=raw_sum_b+ref_b;
@@ -361,6 +372,30 @@ module awb  #(
         if(!I_rst_n) begin
             mean_r<=0;mean_g<=0;reference_streak<=0;red_converged<=0;
             O_reference<=0;O_reference_upd<=0;
+        end else if(REFERENCE_ONLY && AUTO_REFERENCE) begin
+            // A missing/occluded/clipped neutral region is not evidence that
+            // unity is correct. Keep the last usable gains and report HOLD.
+            // EXP/GAIN events and SW4 cannot discard an automatic solution.
+            if(sof_edge && frame_seen) begin
+                O_reference[24]<=ref_count>=MIN_REFERENCE_SAMPLES;
+                O_reference_upd<=~O_reference_upd;
+            end
+            if(done_v) begin
+                case(done_sel)
+                    0:red_converged<=gain_converged;
+                    1:begin
+                        reference_streak<=red_converged && gain_converged ?
+                            (reference_streak==15 ? reference_streak:reference_streak+1'b1) : 0;
+                        O_reference[26]<=1'b1; // at least one usable automatic solution
+                    end
+                    2:mean_r<=done_quo[7:0];
+                    3:mean_g<=done_quo[7:0];
+                    4:begin
+                        O_reference[25:0]<={reference_streak>=3,snap_good,mean_r,mean_g,done_quo[7:0]};
+                        O_reference_upd<=~O_reference_upd;
+                    end
+                endcase
+            end
         end else if(REFERENCE_ONLY) begin
             if(done_v && !I_gain_freeze && !calibration_abort) begin
                 case(done_sel)

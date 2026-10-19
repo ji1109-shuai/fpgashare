@@ -1,5 +1,5 @@
 `timescale 1ns/1ps
-module tb_parts_multi;
+module tb_parts_multi #(parameter CALIBRATION=1);
  localparam W=640,H=448;
  reg clk=0,rst=0,valid=0,user=0,last=0;
  reg [95:0] bin=0,rgb=0;
@@ -9,13 +9,13 @@ module tb_parts_multi;
  integer x,y,k,j,cx,cy,angle=0,radius=64,damage=0,cycles,frames=0,active=4;
  integer expected_shape[0:4],expected_colour[0:4],hits[0:4],n,centre;
  reg change_context_mid_batch=0;
- reg old_upd,no_board=0;reg ready=1;reg [7:0] epoch=0;
+ reg old_upd,no_board=0;reg ready=CALIBRATION;reg [7:0] epoch=0;
  reg [55:0] item;
  img_tire #(.BEATS_PER_LINE(W/4),.LINES_PER_FRAME(H),.FG_IS_WHITE(0),.WHITE_BOARD(1),
- .COLOR_MODE(1),.PARTS_MODE(1),.COLOR_CALIBRATION(1),.MULTI_TARGETS(1)) dut(
+ .COLOR_MODE(1),.PARTS_MODE(1),.COLOR_CALIBRATION(CALIBRATION),.MULTI_TARGETS(1)) dut(
  .I_clk(clk),.I_rst_n(rst),.I_tdata(bin),.I_rgb(rgb),.I_tvalid(valid),.I_tuser(user),.I_tlast(last),
  .I_roi_valid(1'b0),.I_roi_x0(11'd0),.I_roi_x1(11'd639),.I_roi_y0(11'd0),.I_roi_y1(11'd447),
- .I_color_reference(8'd232),.I_color_epoch(epoch),.I_color_ready(ready),.I_query_bank(1'b0),.I_query_row(8'd0),
+ .I_color_reference(CALIBRATION ? 8'd232:8'd0),.I_color_epoch(epoch),.I_color_ready(ready),.I_query_bank(1'b0),.I_query_row(8'd0),
  .O_targets(targets),.O_target_count(count),.O_target_overflow(overflow),.O_upd(upd));
  always #5 clk=~clk;
   function automatic part_pixel(input integer px,py,pk);
@@ -118,17 +118,28 @@ module tb_parts_multi;
   expected_colour[1]=6;observe(1,4,0);
   kind[0]=0;observe(1,3,0); // slot indices change; surviving histories must follow positions.
   kind[0]=1;observe(1,3,0);observe(1,3,0);observe(1,4,0);
-  // A setting change invalidates colour, but keeps independent shape confirmation.
+  if(CALIBRATION) begin
+  // Historical opt-in calibration mode still has independent shape confirmation.
   ready=0;epoch=1;for(j=0;j<4;j=j+1) expected_colour[j]=0;
   observe(1,4,0);ready=1;observe(1,4,0);
   expected_colour[0]=5;expected_colour[1]=6;expected_colour[2]=4;expected_colour[3]=6;observe(1,4,0);
   change_context_mid_batch=1;for(j=0;j<4;j=j+1) expected_colour[j]=0;
   observe(1,4,0);observe(1,4,0);
   expected_colour[0]=5;expected_colour[1]=6;expected_colour[2]=4;expected_colour[3]=6;observe(1,4,0);
+  end else begin
+   // Production: no reference, no ready/lock since reset, all four colours work.
+   // Neither a control toggle nor an epoch change, even mid-analysis, blanks them.
+   epoch=1;observe(1,4,0);ready=1;epoch=2;observe(1,4,0);
+   ready=0;change_context_mid_batch=1;observe(1,4,0);observe(1,4,0);
+  end
   active=5;observe(1,3,1);observe(1,3,1);observe(1,4,1);
   active=0;observe(0,0,0);active=4;no_board=1;observe(0,0,0);
   no_board=0;active=1;kind[0]=5;observe(0,0,0);observe(0,0,0);observe(0,0,0);
   $display("ALL PASS multi: four shapes/colours, independent confirmation, hue change, removal/reorder, calibration epoch, overflow, empty/no board, unsupported silhouette");$finish;
  end
  initial begin #500000000;$fatal(1,"multi global timeout");end
+endmodule
+
+module tb_parts_multi_no_calibration;
+ tb_parts_multi #(.CALIBRATION(0)) test();
 endmodule

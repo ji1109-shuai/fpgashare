@@ -1,7 +1,7 @@
 `timescale 1ns/1ps
 // Independent output-pixel oracle: four different labels, original logo,
 // compact controls, removal, candidates and atomic camera/display publication.
-module tb_multi_overlay #(parameter WB_PROBE=0);
+module tb_multi_overlay #(parameter WB_PROBE=0,AUTO_WB=0);
  localparam W=960,H=384;
  reg clk=0,rst=0,de=0,sof=0,eol=0,toggle=0;
  reg [223:0] targets=0,expected_targets=0;
@@ -14,16 +14,18 @@ module tb_multi_overlay #(parameter WB_PROBE=0);
  reg [127:0] control_word;
  reg [127:0] probe={24'h80c080,20'h18000,20'h18000,11'd1024,11'd0,11'd0,11'd0,11'd1024,4'd0,5'd0};
  reg [127:0] expected_probe;
+ reg [31:0] auto_reference=0;
+ reg [31:0] expected_reference;
  reg [23:0] expected;reg [24:0] logo;
  osd_char_lib reference_font(.I_char(ch),.I_row(row),.O_row_bits(bits));
  hdmi_mixer #(.IMG_WIDTH(W),.IMG_HEIGHT(H),.TARGET_ONLY(1),.PARTS_MODE(1),.MULTI_TARGETS(1),
- .SHOW_LOGO(1),.DISPLAY_MODES(1),.CAMERA_CONTROL(1),.COLOR_DIAGNOSTICS(1),.COMPACT_DIAGNOSTICS(1),.WB_DIAGNOSTICS(WB_PROBE)) dut(
+ .SHOW_LOGO(1),.DISPLAY_MODES(1),.CAMERA_CONTROL(1),.COLOR_DIAGNOSTICS(1),.COMPACT_DIAGNOSTICS(1),.WB_DIAGNOSTICS(WB_PROBE),.AUTO_WHITE_BALANCE(AUTO_WB)) dut(
  .I_clk(clk),.I_rst_n(rst),.I_video_vsync(1'b0),.I_video_hsync(1'b0),
  .I_video_de(de),.I_video_user(sof),.I_video_last(eol),.I_video_rd_data(24'h556677),
  .I_display_mode(3'd0),.I_debug_status(4'd0),.I_bbox_upd(toggle),.I_bbox_valid(1'b0),.I_bbox_moving(1'b1),
  .I_targets(targets),.I_target_count(3'd4),.I_target_overflow(1'b0),
  .I_camera_status(29'h02244112),.I_camera_status_upd(toggle),
- .I_color_reference(32'h07e8e8e8),.I_color_reference_upd(toggle),.I_color_diag(128'hffff),
+ .I_color_reference(AUTO_WB ? auto_reference:32'h07e8e8e8),.I_color_reference_upd(toggle),.I_color_diag(128'hffff),
  .I_wb_diag(probe),.I_wb_diag_upd(toggle),
  .I_meas_upd(1'b0),.I_meas_valid(1'b0),.I_thresh_upd(1'b0),.I_roi_upd(1'b0),.I_roi_valid(1'b0),
  .O_hdmi_de(ode),.O_hdmi_data(out));
@@ -41,7 +43,7 @@ module tb_multi_overlay #(parameter WB_PROBE=0);
  endfunction
  task frame;
  begin
-  toggle=~toggle;repeat(12) @(negedge clk);expected_targets=targets;expected_probe=probe;written=0;seen=0;
+  toggle=~toggle;repeat(12) @(negedge clk);expected_targets=targets;expected_probe=probe;expected_reference=auto_reference;written=0;seen=0;
   for(y=0;y<H;y=y+1) begin
    for(x=0;x<W;x=x+1) begin
     @(negedge clk);de=1;sof=x==0 && y==0;eol=x==W-1;
@@ -78,7 +80,9 @@ module tb_multi_overlay #(parameter WB_PROBE=0);
      ci=(x-176)/16;ch=control_word[127-ci*8-:8];row=(y-104)%20;col=(x-176)%16;
      expected=box_hit ? 24'hff00ff:24'h202020;
     end else if(x>=176 && x<432 && y>=84 && y<100) begin
-     control_word="WB:LOCK REF:OK  ";ci=(x-176)/16;ch=control_word[127-ci*8-:8];row=y-84;col=(x-176)%16;expected=24'h202020;
+     control_word="WB:LOCK REF:OK  ";
+     if(AUTO_WB) control_word=!expected_reference[26] ? "WB:WAIT         ":expected_reference[24] ? "WB:AUTO         ":"WB:HOLD         ";
+     ci=(x-176)/16;ch=control_word[127-ci*8-:8];row=y-84;col=(x-176)%16;expected=24'h202020;
     end else if(x>=176 && x<304 && y>=40 && y<56) begin
      control_word="EXP:2244        ";ci=(x-176)/16;ch=control_word[127-ci*8-:8];row=y-40;col=(x-176)%16;expected=24'h202020;
     end else if(x>=176 && x<304 && y>=60 && y<76) begin
@@ -114,7 +118,19 @@ module tb_multi_overlay #(parameter WB_PROBE=0);
   targets={packet(1,7,4,752,852,200,300),packet(1,3,1,512,612,200,500),
            packet(0,1,6,272,372,200,300),packet(1,2,5,32,132,200,300)};
   frame();
+  if(AUTO_WB) begin
+   targets={packet(1,4,4,752,852,200,300),packet(1,3,1,512,612,200,300),
+            packet(1,1,6,272,372,200,300),packet(1,2,5,32,132,200,300)};
+   auto_reference=32'h0580c080;frame();
+   targets={packet(1,4,4,752,852,200,300),packet(1,3,1,512,612,200,300),
+            packet(1,1,6,272,372,200,300),packet(1,2,5,32,132,200,300)};
+   auto_reference=32'h0480c080;frame();
+  end
   $display("ALL PASS multi overlay: four independent labels, logo pixels, EXP/GAIN/WB, probe%0d frame-held CDC, removal, candidate/invalid bounds hidden",WB_PROBE);$finish;
  end
  initial begin #50000000;$fatal(1,"multi overlay watchdog");end
+endmodule
+
+module tb_auto_wb_overlay;
+ tb_multi_overlay #(.AUTO_WB(1)) test();
 endmodule

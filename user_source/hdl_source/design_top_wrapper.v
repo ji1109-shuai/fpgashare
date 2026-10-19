@@ -639,7 +639,7 @@ image_correction #(
     localparam PARTS_MODE=1;
     wire [2:0] S_display_mode;
     isp_top #(.TIRE_MODE(TIRE_MODE),.PARTS_MODE(PARTS_MODE),.VIDEO_MODES(1),.DEBUG_CAPTURE(1),
-        .COLOR_STABILITY(PARTS_MODE),.MULTI_TARGETS(PARTS_MODE)) u_isp_top (
+        .COLOR_STABILITY(0),.AUTO_WHITE_BALANCE(PARTS_MODE),.MULTI_TARGETS(PARTS_MODE)) u_isp_top (
 .axi4s_video_aclk(S_csi_rx_clk),
 .I_rst_n         (S_rst_n),
 .I_tlast         (S_raw_tlast	),
@@ -852,7 +852,7 @@ image_correction #(
         .CAMERA_CONTROL ( 1 ),
         .COLOR_DIAGNOSTICS ( PARTS_MODE ),
         .SHOW_LOGO(1),.COMPACT_DIAGNOSTICS(1),.MULTI_TARGETS(PARTS_MODE),
-        .WB_DIAGNOSTICS(PARTS_MODE)
+        .WB_DIAGNOSTICS(PARTS_MODE),.AUTO_WHITE_BALANCE(PARTS_MODE)
     )u_hdmi_mixer(
         .I_clk           ( S_hdmi_pixel_clk   ),
         .I_rst_n         ( S_hdmi_rst_n       ),

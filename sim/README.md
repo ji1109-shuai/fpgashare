@@ -1,5 +1,7 @@
 # 功能仿真
 
+2026-10-19 自动白平衡新增 `tb_awb_auto_reference`（真实AWB对比旧中心/固定1倍，含失去样本和重获）、`tb_bayer_neutral`（真实BGGR插值）、`tb_auto_wb_isp`（实际1280×720 ISP接线与逐拍校验）、`tb_auto_wb_overlay`（WAIT/AUTO/HOLD及四目标标签）和 `tb_parts_multi_no_calibration`（无锁定/参考门控的目标确认）。已加入对应脚本默认列表，说明见 [AUTO_WB_20261019.md](../docs/AUTO_WB_20261019.md)。历史手动校准模块回归保留，但不代表当前生产版要求放白纸。
+
 从原工程迁入当前维护所需的三组测试及其直接源码依赖，未复制仿真数据库、旧源码备份或构建缓存。均使用当前仓库的 `user_source`，不需要原 `D:/FPGA_competition` 目录。
 
 运行环境：Windows PowerShell、Vivado XSim。默认工具路径是 `D:/AMDDesignTools/2025.2/Vivado`；安装位置不同时使用参数覆盖。脚本中的运行库路径按该版本组织，其他版本需要核对。

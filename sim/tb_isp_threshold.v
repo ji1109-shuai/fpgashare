@@ -89,7 +89,7 @@ module demosaic #(parameter IMG_HEIGHT=720, IMG_WIDTH=1280,
     assign axi4s_video_tready=1;
     assign O_tlast=0; assign O_tuser=0; assign O_tvalid=0; assign O_tdata=0;
 endmodule
-module awb #(parameter IMG_HEIGHT=720, IMG_WIDTH=1280,REFERENCE_ONLY=0,REFERENCE_WINDOW=0,DIAGNOSTICS=0)(
+module awb #(parameter IMG_HEIGHT=720, IMG_WIDTH=1280,REFERENCE_ONLY=0,REFERENCE_WINDOW=0,DIAGNOSTICS=0,MIN_REFERENCE_SAMPLES=128,AUTO_REFERENCE=0)(
     input I_clk,I_rst_n,I_tlast,I_tuser,I_tvalid,I_gain_freeze,
     input [95:0] I_tdata, output I_tready,
     output O_tlast,O_tuser,O_tvalid, output [95:0] O_tdata, input O_tready,

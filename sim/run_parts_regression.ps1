@@ -1,5 +1,5 @@
 param([string]$VivadoRoot='D:/AMDDesignTools/2025.2/Vivado',
-    [string[]]$Tops=@('tb_parts_shape_pipeline','tb_parts','tb_parts_colours'),
+    [string[]]$Tops=@('tb_parts_shape_pipeline','tb_parts','tb_parts_colours','tb_parts_multi_no_calibration'),
     [string]$BuildName='parts_validation')
 $ErrorActionPreference='Stop'
 $vivado=$VivadoRoot
