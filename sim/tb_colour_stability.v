@@ -24,7 +24,7 @@ module tb_colour_ratios;
         check(24'h484848,224,0); // neutral black/silver uncertainty band
         check(24'h303030,224,4);check(24'h606060,224,5);
         check(24'h202020,128,4);check(24'h404040,128,5);
-        check(24'h000000,224,0);check(24'h070707,224,0);
+        check(24'h000000,224,4);check(24'h070707,224,4);
         check(24'hfa3030,224,0);check(24'hffffff,224,0);
         check(24'h28a038,224,0);check(24'h3030c0,224,0);
         // Back-to-back lanes/colours expose accidental third-cycle latency.

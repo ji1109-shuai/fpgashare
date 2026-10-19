@@ -490,6 +490,18 @@ module img_parts_color #(
     reg [8:0] red,green,blue,peak,spread,reference;
     reg [7:0] maximum,minimum;
     wire [8:0] neutral_band=(peak>>3)+9'd4;
+    wire [8:0] black_band=(peak>>2)+9'd4;
+    wire [8:0] black_limit=(reference>>2)+(reference>>4);
+    // HSV sector inequalities: H=60*(G-B)/(max-min) when R is max.
+    // Widen BEFORE shifting; four lanes sustain one pixel/lane/clock.
+    wire [8:0] gb_delta=green>=blue ? green-blue:blue-green;
+    wire [8:0] gr_delta=green>=red ? green-red:9'd0;
+    wire [12:0] hue_num={4'd0,gb_delta};
+    wire [12:0] hue_den={4'd0,spread};
+    wire hue_red=red==peak && (hue_num<<2)<=hue_den;
+    wire hue_brass=blue<=red && blue<=green &&
+        (red>=green ? (hue_num<<4)>=((hue_den<<2)+hue_den) :
+                      ({4'd0,gr_delta}<<3)<=hue_den);
     always @* begin
         maximum=I_rgb[23:16]>I_rgb[15:8] ? I_rgb[23:16]:I_rgb[15:8];
         if(I_rgb[7:0]>maximum) maximum=I_rgb[7:0];
@@ -503,18 +515,17 @@ module img_parts_color #(
             peak<={1'b0,maximum};spread<={1'b0,maximum}-{1'b0,minimum};
             reference<=I_reference>=64 ? {1'b0,I_reference}:9'd224;
             O_color<=0;
-            // Ratios use bounded add/shift comparisons, no HSV or divider.
-            // Reject clipped hue, but do not confuse low saturation with clipping.
-            if(peak<250 && peak>=SIGNAL_FLOOR) begin
-                if(green>=SIGNAL_FLOOR && red+(green>>3)>=green &&
-                   red<=(green<<1) && green>=blue+(green>>2)) O_color<=6;
-                else if(red>=green+(green>>2) && red>=blue+(blue>>2) &&
-                        spread>=(peak>>2)) O_color<=1;
-                else if(spread<=neutral_band) begin
-                    if(peak<=(reference>>2)) O_color<=4;
-                    else if(peak>=(reference>>2)+(reference>>3)) O_color<=5;
-                end
-            end else if(peak>=8 && peak<SIGNAL_FLOOR && spread<=4) O_color<=4;
+            // Neutral dark foreground includes true zero: segmentation has
+            // already established the object. Never infer BLACK from UNKN.
+            // Mild colour casts at low signal must not create unstable hue.
+            if(peak<=black_limit && spread<=black_band) O_color<=4;
+            else if(peak<250 && peak>=SIGNAL_FLOOR) begin
+                if(spread<=neutral_band) begin
+                    if(peak>=(reference>>2)+(reference>>3)) O_color<=5;
+                end else if(hue_brass) O_color<=6; // 18.75..67.5 degrees
+                else if(hue_red) O_color<=1;      // -15..15 degrees (wrap)
+                // Retain unknown intervals rather than merging red/brass.
+            end
         end
     end
 endmodule
@@ -1479,7 +1490,9 @@ module img_tire #(
                     else if(vote_brass>=8 && scale_const(vote_brass,5)>=scale_const(parts_vote_total,2) &&
                             {1'b0,vote_brass}>={vote_red,1'b0}) parts_color_choice<=6;
                     else if(vote_silver>=8 && scale_const(vote_silver,5)>=scale_const(parts_vote_total,4)) parts_color_choice<=5;
-                    else if(vote_black>=8 && scale_const(vote_black,5)>=scale_const(parts_vote_total,4)) parts_color_choice<=4;
+                    // Black material may contain neutral specular patches.
+                    // Require positive dark evidence (>=60%), not absence of hue.
+                    else if(vote_black>=8 && scale_const(vote_black,5)>=scale_const(parts_vote_total,3)) parts_color_choice<=4;
                     else color_reason<=4;
                     box_area<=bw*bh;state<=PARTS_MODE && target_ok ? PART_TRACE : PUBLISH;
                 end

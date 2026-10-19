@@ -846,13 +846,13 @@ image_correction #(
         .IMG_HEIGHT ( 720  ),
         .DEBUG_MODE ( 0    ),
         .VIDEO_READ_LATENCY ( 2 ),
-        .DISPLAY_MODES ( 1 ),
+        .DISPLAY_MODES ( 0 ),
         .TARGET_ONLY ( 1 ),
         .PARTS_MODE ( PARTS_MODE ),
         .CAMERA_CONTROL ( 1 ),
-        .COLOR_DIAGNOSTICS ( PARTS_MODE ),
+        .COLOR_DIAGNOSTICS ( 0 ),
         .SHOW_LOGO(1),.COMPACT_DIAGNOSTICS(1),.MULTI_TARGETS(PARTS_MODE),
-        .WB_DIAGNOSTICS(PARTS_MODE),.AUTO_WHITE_BALANCE(PARTS_MODE)
+        .WB_DIAGNOSTICS(0),.AUTO_WHITE_BALANCE(PARTS_MODE)
     )u_hdmi_mixer(
         .I_clk           ( S_hdmi_pixel_clk   ),
         .I_rst_n         ( S_hdmi_rst_n       ),

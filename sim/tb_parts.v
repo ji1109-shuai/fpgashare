@@ -29,6 +29,15 @@ module tb_parts #(parameter COLOUR_TEST=0);
       end else if(surface_mode==4) begin
         // Equal red/black within each cell must not win by ternary priority.
         surface_pixel=px%8<4 ? 24'hc03838:24'h303030;
+      end else if(surface_mode==5) begin
+        // Reflective black: 5/8 black, 3/8 silver, within EVERY cell.
+        surface_pixel=px%8<5 ? 24'h3c332a:24'hb8b8b8;
+      end else if(surface_mode==6) begin
+        // Same material fraction spread across whole coarse cells.
+        surface_pixel=(px/8)%8<5 ? 24'h060606:24'hb8b8b8;
+      end else if(surface_mode==7) begin
+        // Black/silver at equal strength is intentionally ambiguous.
+        surface_pixel=(px/8)%2 ? 24'h303030:24'hb8b8b8;
       end
     end
   endfunction
@@ -138,10 +147,10 @@ module tb_parts #(parameter COLOUR_TEST=0);
       if(diagnostic[127:104]!==24'h300c0c || !diagnostic[19]) $fatal(1,"target RGB diagnostic not aligned %h",diagnostic);
       part_rgb=24'h383018;check_colour(1,2,0);check_colour(1,2,6);
       part_rgb=24'h606060;check_colour(1,2,0);check_colour(1,2,5);
-      part_rgb=24'h484848;check_colour(1,2,0);
+      // Reference232: black ends at72, silver begins at87; test the gap.
+      part_rgb=24'h4c4c4c;check_colour(1,2,0);
       part_rgb=24'h303030;check_colour(1,2,0);check_colour(1,2,4);
-      part_rgb=24'h000000;check_colour(1,2,0);
-      if(diagnostic[14:11]!==6) $fatal(1,"dark diagnostic %h",diagnostic);
+      part_rgb=24'h000000;check_colour(1,2,4);
       part_rgb=24'hfa2020;check_colour(1,2,0);
       if(diagnostic[14:11]!==7) $fatal(1,"clipped diagnostic %h",diagnostic);
       part_rgb=24'hc03838;surface_mode=1;check_colour(1,2,0);check_colour(1,2,1);
@@ -160,7 +169,7 @@ module tb_parts #(parameter COLOUR_TEST=0);
       check_colour(1,2,0);check_colour(1,2,6);
       check_colour(0,0,0);
       if(diagnostic[14:11]!==2) $fatal(1,"empty diagnostic missing");
-      $display("ALL PASS colour stability parts: calibration gate/epoch, dim red/brass, neutral dead band, dark/clipped/mixed reasons, inner fallback, target RGB, independent shape");
+      $display("ALL PASS colour stability parts: calibration gate/epoch, dim red/brass, neutral dead band, zero-black/clipped/mixed, inner fallback, target RGB, independent shape");
     end else if(COLOUR_TEST) begin
       // Shape confirmation and colour confirmation run independently.
       part_rgb=24'hb8b8b8;
@@ -191,7 +200,13 @@ module tb_parts #(parameter COLOUR_TEST=0);
       part_rgb=24'hc03838;check_colour(7,4,0);check_colour(7,4,1);
       part_rgb=24'hb89648;check_colour(7,4,0);check_colour(7,4,6);
       surface_mode=4;check_colour(7,4,0);check_colour(7,4,0);
-      surface_mode=0;
+      surface_mode=0;part_rgb=24'hb45418;check_colour(7,4,0);check_colour(7,4,6);
+      part_rgb=24'hc8b098;check_colour(7,4,6);
+      part_rgb=24'h3c332a;check_colour(7,4,0);check_colour(7,4,4);
+      surface_mode=5;check_colour(7,4,4);check_colour(7,4,4);
+      surface_mode=6;check_colour(7,4,4);check_colour(7,4,4);
+      surface_mode=7;check_colour(7,4,0);check_colour(7,4,0);
+      surface_mode=0;part_rgb=24'h000000;check_colour(7,4,0);check_colour(7,4,4);
       check_colour(0,0,0);
       $display("ALL PASS parts colours frames%0d: silver/brass/red/black, highlights/shadows, hue changes, unsupported/mixed rejection, all 4 shapes, independent confirmation and removal",frames);
     end else begin

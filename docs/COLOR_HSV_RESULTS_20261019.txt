@@ -1,0 +1,47 @@
+2026-10-19 HSV colour classification / clean UI functional validation
+Baseline: 931b125, user confirmed automatic WB fixes green cast; confirmation saved as de7d754.
+Tool: Vivado XSim 2025.2. No TD synthesis, place/route, bit generation or board test performed.
+
+BEFORE FIX: tb_parts_color_hsv RGB B45418 -> RED, expected BRASS (H about 23 degrees).
+Compatibility fixture correction: with reference232 the new black upper bound is72; use gray76 for the preserved unknown interval (72..87). No RTL change was made to hide this fixture failure.
+
+sim/colour_hsv_validation/tb_parts_color_hsv.log
+ALL PASS HSV colour sectors: 534 independent swatches, dim/zero black, neutral silver, rejection and two-clock stream
+
+sim/colour_hsv_validation/tb_parts_colours.log
+ALL PASS parts colours frames49: silver/brass/red/black, highlights/shadows, hue changes, unsupported/mixed rejection, all 4 shapes, independent confirmation and removal
+
+sim/colour_hsv_final_validation/tb_parts_colour_stability.log
+ALL PASS colour stability parts: calibration gate/epoch, dim red/brass, neutral dead band, zero-black/clipped/mixed, inner fallback, target RGB, independent shape
+
+sim/colour_hsv_final_validation/tb_parts_multi_no_calibration.log
+ALL PASS multi: four shapes/colours, independent confirmation, hue change, removal/reorder, calibration epoch, overflow, empty/no board, unsupported silhouette
+
+sim/colour_hsv_final_validation/tb_parts_clean_overlay.log
+ALL PASS multi overlay: four labels, logo pixels, EXP/GAIN, cleanUI1 probe0, frame-held CDC, removal, candidate/invalid bounds hidden
+
+sim/colour_hsv_isp_validation/tb_colour_ratios.log
+ALL PASS relative colour ratios: 25 brightness/reference/rejection cases and back-to-back two-clock alignment
+
+sim/colour_hsv_isp_validation/tb_awb_auto_reference.log
+ALL PASS auto reference: green-cast board corrected, centre red/black/clipped rejected, old/unity green reproduced, boot SW4 ignored, last valid gains held, changed illumination reacquired, 378880 RGB beats/5920 lines, 3456 neutral output checks
+
+sim/colour_hsv_isp_validation/tb_auto_wb_isp.log
+ALL PASS automatic WB ISP: acquired despite red centre and SW4 high, HOLD after clipping/EXP event/SW4, 1382400 audited RGB beats, 1036800 packed words/4320 lines, centre diagnostic not overflowed
+
+sim/colour_hsv_video_validation/tb_video_tail_isp.log
+ALL PASS: tight blank mode3 H720, 3 frames, independent pixels/DDR addresses, peak=428
+
+sim/colour_hsv_video_validation/tb_video_tail_isp_sobel.log
+ALL PASS: tight blank mode2 H720, 3 frames, independent pixels/DDR addresses, peak=428
+
+Production source SHA256 (working tree at validation completion):
+BD01A6322FDF45FD605CB608FDB73BB419316D2FB9BADD0E08638EBB8B524795  user_source/hdl_source/img_proj.v
+C162CD492992ED0642CF86B3FA864B8FFC023156E7C28A35CC1E3E7D8495063B  user_source/hdl_source/design_top_wrapper.v
+541DEF7AF3E862F0FC9AF41DD330BD299C21787304E567BAB20BF91E4EDD6DEC  user_source/hdl_source/awb.v
+647863EA9DDFF1E5B59A493591C5AEAE70A68424ED976EB4E34B856A3A5F6D43  user_source/hdl_source/isp/isp_top.v
+4E0A5C50BEC60370BB6B85D1EDBEBFAA63400076BE1D081E48F9902511A484EF  user_source/hdl_source/hdmi_mixer.v
+
+10 distinct tops passed. RGB swatches are synthetic; field colour accuracy and FPGA timing remain unverified for this colour revision.
+AWB / ISP / Sobel-EDGE / DDR source and pixel timing are unchanged from the confirmed baseline; wrapper changes affect overlay parameter selection only.
+Logo, four confirmed boxes and colour/shape labels remain enabled. Only EXP/GAIN controls remain in the status area.

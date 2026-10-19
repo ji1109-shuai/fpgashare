@@ -4,6 +4,8 @@
 
 2026-10-19 当前偏绿修正见 [AUTO_WB_20261019.md](AUTO_WB_20261019.md)。固定1倍补偿与反光投票两次实验均已撤回；`COLOR_NO_CALIBRATION_20261019.md` 和 `COLOR_GLARE_VALIDATION.md` 为失败实验记录，不能按它们的步骤使用当前工程。
 
+用户随后确认自动白平衡上板解决偏绿。在此基础上的 HSV 色相分类、黑色反光处理及仅保留 EXP/GAIN 的界面调整，见 [COLOR_HSV_20261019.md](COLOR_HSV_20261019.md)，此轮颜色修改仍待上板核验。
+
 队友开始协作前，先阅读 [Git/GitHub 操作指南](GIT_COLLABORATION.md)，按各自功能分支、PR 检查和合并的流程开发。
 
 ## 已迁入的关键内容
