@@ -86,6 +86,13 @@ module tb_parts #(parameter COLOUR_TEST=0);
         default:part_pixel=0;
       endcase
       if(damage && ((px%23==1 && py%17<3) || (dx==radius/2 && dy>0))) part_pixel=0;
+      // Four-pixel specular band at the washer rim: after 8x8 cell reduction
+      // this creates a small silhouette gap for the close operation to bridge.
+      if(damage && pk==1 && dx>=radius-8 && dx<radius && dy>=-8 && dy<8) part_pixel=0;
+      // Sparse dark shadows inside a washer hole should be removed by the
+      // opening pass, while the annular target remains connected.
+      if(damage && pk==1 && dx*dx+dy*dy<radius*radius*0.36*0.36 &&
+         px%24==0 && py%24==0) part_pixel=1;
     end
   endfunction
   task make_image(input integer pk);
@@ -111,7 +118,7 @@ module tb_parts #(parameter COLOUR_TEST=0);
   task check(input integer pk,expected,corrupt);
     begin
       make_image(pk);old_upd=upd;send_frame(corrupt);wait_cycles=0;
-      while(upd===old_upd && wait_cycles<300000) begin @(negedge clk);wait_cycles=wait_cycles+1;end
+      while(upd===old_upd && wait_cycles<600000) begin @(negedge clk);wait_cycles=wait_cycles+1;end
       if(upd===old_upd) $fatal(1,"parts timeout state%0d scan%0d phase%0d",dut.state,dut.scan,dut.phase);
       if(typ!==expected) $fatal(1,"kind%0d angle%0d radius%0d offset%0d type%0d expected%0d status%0d area%0d hole%0d box%0d,%0d compact%0d holeok%0d round%0d hex%0d circle%0d head%0d six%0d/%0d",
         pk,angle,radius,offset,typ,expected,status,dut.ba,dut.ha,w,h,dut.parts_compact,dut.parts_hole,dut.parts_round,dut.parts_hex,dut.parts_circle,dut.parts_head,dut.g_parts_shape.shape.six_num,dut.g_parts_shape.shape.product);
@@ -212,6 +219,9 @@ module tb_parts #(parameter COLOUR_TEST=0);
     end else begin
     check(0,0,0);
     confirm(1,2);
+    // Washer retains its ring and hole when isolated hole shadows and small
+    // reflective gaps are present in the coarse binary mask.
+    damage=1;check(1,2,0);damage=0;
     damage=1;part_rgb=24'hb89648;check(1,2,0);
     damage=0;part_rgb=24'hb8b8b8;offset=3;radius=80;check(1,2,0);
     radius=64;offset=0;

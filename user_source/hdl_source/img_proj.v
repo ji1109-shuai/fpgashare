@@ -1052,13 +1052,18 @@ module img_tire #(
     endfunction
     reg [AW-1:0] neighbor_addr;
     always @(posedge I_clk) neighbor_addr<=scale_const({24'd0,ny},GW)+nx;
-    reg morph_pass,morph_acc;
+    // Closing at the 8x8-cell mask resolution bridges small reflective gaps
+    // without eroding thin washer/nut features. Component/hole analysis below
+    // rejects detached shadow islands while preserving the original shape.
+    reg morph_pass;
+    reg morph_acc;
     reg [3:0] morph_tap;
     reg [6:0] morph_meta;
     reg morph_q;
     reg morph_scratch[0:N-1];
     reg [7:0] morph_x,morph_y;
     wire morph_tapping=state>=MORPH_REQ && state<=MORPH_USE;
+    wire morph_use_scratch=morph_pass;
     wire [AW-1:0] morph_addr=scale_const({24'd0,morph_y},GW)+morph_x;
     always @* begin
         morph_x=sx;morph_y=sy;
@@ -1091,7 +1096,7 @@ module img_tire #(
     wire [AW-1:0] visit_addr=start_component ? scan : neighbor_addr;
     always @(posedge I_clk) begin
         map_q<=map[map_ra];
-        if(PARTS_MODE) morph_q<=morph_scratch[map_ra];
+        if(PARTS_MODE) morph_q<=morph_use_scratch ? morph_scratch[map_ra] : map_q[0];
         if(cap_pending[2]) map[cap_addr_s2]<=cap_data_s2;
         else if(MULTI_TARGETS && state==MULTI_CLEAR_WRITE) map[scan]<={map_q[7:4],1'b0,map_q[2],map_q[0] && map_q[1],map_q[0]};
         else if(PARTS_MODE && state==MORPH_WRITE && morph_pass) map[scan]<={morph_meta,morph_acc};
@@ -1327,7 +1332,7 @@ module img_tire #(
                         if(white_hist[15]>hist_best) parts_threshold<=8'd248-PARTS_WHITE_MARGIN;
                         else if(hist_best!=0) parts_threshold<=hist_best_bin<10 ? 8'd128 :
                             {hist_best_bin,4'd8}-PARTS_WHITE_MARGIN;
-                        morph_pass<=0;scan<=0;sx<=0;sy<=0;state<=MORPH_CENTER;
+                    morph_pass<=0;scan<=0;sx<=0;sy<=0;state<=MORPH_CENTER;
                     end else hist_index<=hist_index+1'b1;
                 end
                 MORPH_CENTER: state<=MORPH_CENTER_WAIT;
@@ -1340,8 +1345,8 @@ module img_tire #(
                 MORPH_REQ: state<=MORPH_WAIT;
                 MORPH_WAIT: state<=MORPH_USE;
                 MORPH_USE: begin
-                    // Dilation reads the captured map; closing reads the
-                    // scratch result from the preceding pass.
+                    // Dilation reads the captured mask; erosion reads its
+                    // scratch result. Keep the established close operation.
                     morph_acc<=morph_pass ? (morph_acc && morph_q) :
                         (morph_acc || map_q[0]);
                     if(morph_tap==8) state<=MORPH_WRITE;
