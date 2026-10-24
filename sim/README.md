@@ -1,5 +1,7 @@
 # 功能仿真
 
+2026-10-22 延迟可视化新增 `tb_recognition_latency`、`tb_parts_multi_latency`、`tb_latency_overlay`，已加入零件回归默认列表；实际尺寸 `tb_auto_wb_isp` 同时打开并核验延迟接口。计时定义、独立运行命令与验证边界见 [LATENCY_OSD_20261022.md](../docs/LATENCY_OSD_20261022.md)。
+
 2026-10-19 颜色优化新增 `tb_parts_color_hsv`（独立HSV色相扫描）、完整零件反光黑色/暖黄铜用例和 `tb_parts_clean_overlay`（仅EXP/GAIN与目标标签/图标逐像素检查），已加入 `run_parts_regression.ps1` 默认列表；说明见 [COLOR_HSV_20261019.md](../docs/COLOR_HSV_20261019.md)。
 
 2026-10-19 自动白平衡新增 `tb_awb_auto_reference`（真实AWB对比旧中心/固定1倍，含失去样本和重获）、`tb_bayer_neutral`（真实BGGR插值）、`tb_auto_wb_isp`（实际1280×720 ISP接线与逐拍校验）、`tb_auto_wb_overlay`（WAIT/AUTO/HOLD及四目标标签）和 `tb_parts_multi_no_calibration`（无锁定/参考门控的目标确认）。已加入对应脚本默认列表，说明见 [AUTO_WB_20261019.md](../docs/AUTO_WB_20261019.md)。历史手动校准模块回归保留，但不代表当前生产版要求放白纸。

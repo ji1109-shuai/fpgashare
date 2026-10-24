@@ -638,8 +638,10 @@ image_correction #(
     // One shared constant must select both recognition and OSD vocabulary.
     localparam PARTS_MODE=1;
     wire [2:0] S_display_mode;
+    wire [15:0] S_latency_bcd;
+    wire S_latency_valid,S_latency_upd;
     isp_top #(.TIRE_MODE(TIRE_MODE),.PARTS_MODE(PARTS_MODE),.VIDEO_MODES(1),.DEBUG_CAPTURE(1),
-        .COLOR_STABILITY(0),.AUTO_WHITE_BALANCE(PARTS_MODE),.MULTI_TARGETS(PARTS_MODE)) u_isp_top (
+        .COLOR_STABILITY(0),.AUTO_WHITE_BALANCE(PARTS_MODE),.MULTI_TARGETS(PARTS_MODE),.LATENCY_DIAGNOSTICS(1)) u_isp_top (
 .axi4s_video_aclk(S_csi_rx_clk),
 .I_rst_n         (S_rst_n),
 .I_tlast         (S_raw_tlast	),
@@ -689,6 +691,7 @@ image_correction #(
 .O_color_diag(S_color_diag),
 .O_wb_diag(S_wb_diag),.O_wb_diag_upd(S_wb_diag_upd),
 .O_targets(S_targets),.O_target_count(S_target_count),.O_target_overflow(S_target_overflow),
+.O_latency_bcd(S_latency_bcd),.O_latency_valid(S_latency_valid),.O_latency_upd(S_latency_upd),
 .O_tready        (S_ISP_O_tready),
 .O_tdata         (S_ISP_O_tdata ),
 .O_tlast         (S_ISP_O_tlast ),
@@ -850,8 +853,10 @@ image_correction #(
         .TARGET_ONLY ( 1 ),
         .PARTS_MODE ( PARTS_MODE ),
         .CAMERA_CONTROL ( 1 ),
-        .COLOR_DIAGNOSTICS ( 0 ),
-        .SHOW_LOGO(1),.COMPACT_DIAGNOSTICS(1),.MULTI_TARGETS(PARTS_MODE),
+        .LATENCY_DIAGNOSTICS ( 1 ),
+        // Temporary colour evidence display; disable after brass samples are collected.
+        .COLOR_DIAGNOSTICS ( PARTS_MODE ),
+        .SHOW_LOGO(1),.COMPACT_DIAGNOSTICS(0),.MULTI_TARGETS(PARTS_MODE),
         .WB_DIAGNOSTICS(0),.AUTO_WHITE_BALANCE(PARTS_MODE)
     )u_hdmi_mixer(
         .I_clk           ( S_hdmi_pixel_clk   ),
@@ -904,6 +909,7 @@ image_correction #(
         .I_color_diag(S_color_diag),
         .I_wb_diag(S_wb_diag),.I_wb_diag_upd(S_wb_diag_upd),
         .I_targets(S_targets),.I_target_count(S_target_count),.I_target_overflow(S_target_overflow),
+        .I_latency_bcd(S_latency_bcd),.I_latency_valid(S_latency_valid),.I_latency_upd(S_latency_upd),
         .O_hdmi_vsync    ( S_hdmi_out_vsync   ),
         .O_hdmi_hsync    ( S_hdmi_out_hsync   ),
         .O_hdmi_de       ( S_hdmi_out_de      ),

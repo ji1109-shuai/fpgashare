@@ -1,0 +1,40 @@
+2026-10-22 Latency OSD functional verification
+Repository: D:/fpgashare
+Tool: Vivado 2025.2 XSim; no TD synthesis/place-and-route/bit generation.
+Metric: accepted recognition frame first valid beat -> same batch result publication.
+Not optical/video end-to-end latency; no hardware timing or board validation claimed.
+
+sim/latency_validation/tb_recognition_latency.log
+ALL PASS latency timer: boundaries, decimal carry, idle finish, abort, recovery, timeout, saturation
+
+sim/latency_validation/tb_parts_multi_latency.log
+ALL PASS multi: four shapes/colours, independent confirmation, hue change, removal/reorder, calibration epoch, overflow, empty/no board, unsupported silhouette; latency checks21
+
+sim/latency_validation/tb_latency_overlay.log
+ALL PASS latency OSD: 8 frames, asynchronous event, atomic mid-raster update, valid zero, invalid/reset/stale/recovery and exact pixels
+
+sim/latency_validation/tb_parts_clean_overlay.log
+ALL PASS multi overlay: four labels, logo pixels, EXP/GAIN, cleanUI1 probe0, frame-held CDC, removal, candidate/invalid bounds hidden
+
+sim/latency_isp_validation/tb_auto_wb_isp.log
+ALL PASS automatic WB ISP: acquired despite red centre and SW4 high, HOLD after clipping/EXP event/SW4, 1382400 audited RGB beats, 1036800 packed words/4320 lines, latency starts2 publications1
+
+sim/latency_isp_validation/tb_colour_diagnostic_raster.log
+ALL PASS diagnostic raster: 71680 pixels, 7 rows of independent expected text, hex numbers, unchanged background and output timing
+
+sim/latency_video_validation/tb_video_tail_isp.log
+ALL PASS: tight blank mode3 H720, 3 frames, independent pixels/DDR addresses, peak=428
+
+sim/latency_video_validation/tb_video_tail_isp_sobel.log
+ALL PASS: tight blank mode2 H720, 3 frames, independent pixels/DDR addresses, peak=428
+
+SOURCE SHA256
+9D021808E804EA621E76AEFD3634956F7D7E7DF9BEAC01FE101B8326DB4B0AA7  user_source/hdl_source/img_proj.v
+F8E1E1B9314ECAE5DCDF46442DB7A97A43D722343B41F9DABC5CA00531A482CC  user_source/hdl_source/isp/isp_top.v
+670BC8BAC5EF762E981642F868BA3CB25B8AA449E30F990154952E9A3DDF1C39  user_source/hdl_source/hdmi_mixer.v
+82A51A3012D757BC6C12D0FC5096127A013B74A199DB817161E7B41F5BFFA855  user_source/hdl_source/osd_char_lib.v
+ADE34148AF4B49031F5F64EDB79EB98ED4198495433EDB2A85580A5F55B79FB8  user_source/hdl_source/design_top_wrapper.v
+EB399AA6086A58613B0A07507C45EE56220A89D0FD6A54AAA114866F528FA311  sim/tb_recognition_latency.v
+E34E6B701E8E7141859CAB0EC2B72826264607D60456FAB5CBE0435B22214DF0  sim/tb_latency_overlay.v
+87182F3A7B1B93772441FD794F066F33DE6148DDD720594375E4145B7BFE477B  sim/tb_parts_multi.v
+71DA492FAD074874774D582849F2B2E747E60683D7112A0DB767FD1AFAE6936D  sim/tb_auto_wb_isp.v

@@ -1,9 +1,12 @@
 `timescale 1ns/1ps
-module tb_parts_multi #(parameter CALIBRATION=1);
+module tb_parts_multi #(parameter CALIBRATION=1,LATENCY_TEST=0);
  localparam W=640,H=448;
  reg clk=0,rst=0,valid=0,user=0,last=0;
  reg [95:0] bin=0,rgb=0;
  wire [223:0] targets;wire [2:0] count;wire overflow,upd;
+ wire [15:0] latency_bcd;wire latency_valid,latency_upd;
+ integer monitor_cycle=0,start_cycle=-1,latency_checks=0,skipped_starts=0,expected_ticks;
+ reg previous_upd=0,previous_latency_upd=0;
  integer owner[0:W*H-1];integer kind[0:4],ox[0:4],oy[0:4];
  reg [23:0] colours[0:4];
  integer x,y,k,j,cx,cy,angle=0,radius=64,damage=0,cycles,frames=0,active=4;
@@ -12,12 +15,29 @@ module tb_parts_multi #(parameter CALIBRATION=1);
  reg old_upd,no_board=0;reg ready=CALIBRATION;reg [7:0] epoch=0;
  reg [55:0] item;
  img_tire #(.BEATS_PER_LINE(W/4),.LINES_PER_FRAME(H),.FG_IS_WHITE(0),.WHITE_BOARD(1),
- .COLOR_MODE(1),.PARTS_MODE(1),.COLOR_CALIBRATION(CALIBRATION),.MULTI_TARGETS(1)) dut(
+ .COLOR_MODE(1),.PARTS_MODE(1),.COLOR_CALIBRATION(CALIBRATION),.MULTI_TARGETS(1),
+ .LATENCY_DIAGNOSTICS(LATENCY_TEST)) dut(
  .I_clk(clk),.I_rst_n(rst),.I_tdata(bin),.I_rgb(rgb),.I_tvalid(valid),.I_tuser(user),.I_tlast(last),
  .I_roi_valid(1'b0),.I_roi_x0(11'd0),.I_roi_x1(11'd639),.I_roi_y0(11'd0),.I_roi_y1(11'd447),
  .I_color_reference(CALIBRATION ? 8'd232:8'd0),.I_color_epoch(epoch),.I_color_ready(ready),.I_query_bank(1'b0),.I_query_row(8'd0),
- .O_targets(targets),.O_target_count(count),.O_target_overflow(overflow),.O_upd(upd));
+ .O_targets(targets),.O_target_count(count),.O_target_overflow(overflow),.O_upd(upd),
+ .O_latency_bcd(latency_bcd),.O_latency_valid(latency_valid),.O_latency_upd(latency_upd));
  always #5 clk=~clk;
+ always @(posedge clk) if(rst && LATENCY_TEST) begin
+  monitor_cycle=monitor_cycle+1;
+  if(dut.capture_valid && dut.capture_user) begin
+   if(dut.take) start_cycle=monitor_cycle;else skipped_starts=skipped_starts+1;
+  end
+  #1;
+  if(upd!=previous_upd) begin
+   expected_ticks=(monitor_cycle-start_cycle)/11251;
+   if(start_cycle<0 || !latency_valid || latency_upd==previous_latency_upd ||
+      latency_bcd[15:12]*1000+latency_bcd[11:8]*100+latency_bcd[7:4]*10+latency_bcd[3:0]!=expected_ticks)
+    $fatal(1,"batch latency got%h valid%0d expected ticks%0d cycles%0d",latency_bcd,latency_valid,expected_ticks,monitor_cycle-start_cycle);
+   latency_checks=latency_checks+1;
+  end else if(latency_upd!=previous_latency_upd) $fatal(1,"latency publication without result");
+  previous_upd=upd;previous_latency_upd=latency_upd;
+ end
   function automatic part_pixel(input integer px,py,pk);
     real ux,uy,a,t,qx,qy;
     integer dx,dy,j;
@@ -77,6 +97,12 @@ module tb_parts_multi #(parameter CALIBRATION=1);
    end
    @(negedge clk);valid=0;user=0;last=0;repeat(2) @(negedge clk);
   end
+  if(LATENCY_TEST) begin
+   // Camera keeps streaming while the single shared engine is busy. This SOF
+   // is intentionally not accepted and must not restart the batch timer.
+   repeat(12) @(negedge clk);valid=1;user=1;last=0;
+   @(negedge clk);valid=0;user=0;
+  end
   cycles=0;
   while(upd===old_upd && cycles<2000000) begin
    @(negedge clk);cycles=cycles+1;
@@ -135,11 +161,16 @@ module tb_parts_multi #(parameter CALIBRATION=1);
   active=5;observe(1,3,1);observe(1,3,1);observe(1,4,1);
   active=0;observe(0,0,0);active=4;no_board=1;observe(0,0,0);
   no_board=0;active=1;kind[0]=5;observe(0,0,0);observe(0,0,0);observe(0,0,0);
-  $display("ALL PASS multi: four shapes/colours, independent confirmation, hue change, removal/reorder, calibration epoch, overflow, empty/no board, unsupported silhouette");$finish;
+  if(LATENCY_TEST && (latency_checks!=frames || skipped_starts!=frames)) $fatal(1,"missing batch latency/skipped-frame checks");
+  $display("ALL PASS multi: four shapes/colours, independent confirmation, hue change, removal/reorder, calibration epoch, overflow, empty/no board, unsupported silhouette; latency checks%0d",latency_checks);$finish;
  end
  initial begin #500000000;$fatal(1,"multi global timeout");end
 endmodule
 
 module tb_parts_multi_no_calibration;
  tb_parts_multi #(.CALIBRATION(0)) test();
+endmodule
+
+module tb_parts_multi_latency;
+ tb_parts_multi #(.CALIBRATION(0),.LATENCY_TEST(1)) test();
 endmodule

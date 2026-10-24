@@ -17,7 +17,7 @@ module tb_colour_diagnostic_raster;
         .I_clk(clk),.I_rst_n(rst),.I_video_vsync(1'b0),.I_video_hsync(1'b0),
         .I_video_de(de),.I_video_user(sof),.I_video_last(eol),.I_video_rd_data(24'h556677),
         .I_color_reference(32'h07a0c080),.I_color_reference_upd(toggle),
-        .I_color_diag({24'hc03020,16'h1234,16'h5678,16'h9abc,16'hdef0,16'h1357,4'd0,1'b1,1'b1,3'd1,4'd4,11'd0}),
+        .I_color_diag({24'hc03020,16'h1234,16'h5678,16'h9abc,16'hdef0,16'h1357,2'd0,2'b10,1'b1,1'b1,3'd1,4'd4,11'd0}),
         .I_bbox_upd(toggle),.I_bbox_valid(1'b0),.I_meas_upd(1'b0),.I_thresh_upd(1'b0),
         .I_roi_upd(1'b0),.I_roi_valid(1'b0),.I_display_mode(3'd0),.I_debug_status(4'd0),
         .O_hdmi_de(ode),.O_hdmi_data(data));
@@ -40,7 +40,7 @@ module tb_colour_diagnostic_raster;
                     case(row)
                         0:line_text="WB:LOCK REF:OK  ";1:line_text="REF:A0C080      ";
                         2:line_text="RGB:C03020      ";3:line_text="R:1234 S:5678   ";
-                        4:line_text="Y:9ABC K:DEF0   ";5:line_text="N:1357 F:1      ";
+                        4:line_text="Y:9ABC K:DEF0   ";5:line_text="N:1357 CL:1 F:1 ";
                         default:line_text="WHY:MIXED       ";
                     endcase
                     font_char=line_text>>((15-(x-16)/16)*8);font_row=(y-84)%20;

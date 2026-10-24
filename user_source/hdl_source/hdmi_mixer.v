@@ -16,7 +16,9 @@ module hdmi_mixer #(
     parameter integer COMPACT_DIAGNOSTICS = 0,
     parameter integer MULTI_TARGETS = 0,
     parameter integer WB_DIAGNOSTICS = 0,
-    parameter integer AUTO_WHITE_BALANCE = 0
+    parameter integer AUTO_WHITE_BALANCE = 0,
+    parameter integer LATENCY_DIAGNOSTICS = 0,
+    parameter integer LATENCY_DISPLAY_TICK_CYCLES = 7500
 )(
     input wire        I_clk,
     input wire        I_rst_n,
@@ -65,6 +67,8 @@ module hdmi_mixer #(
     input wire [223:0] I_targets,
     input wire [2:0] I_target_count,
     input wire I_target_overflow,
+    input wire [15:0] I_latency_bcd,
+    input wire I_latency_valid,I_latency_upd,
     input wire        I_bbox_moving,     // 1=工件运动中（帧间位移超阈值）
     input wire [23:0] I_bbox_cnt,        // 工件计数 BCD {d5..d0}
     input wire        I_bbox_valid,      // 本帧存在前景
@@ -96,6 +100,7 @@ module hdmi_mixer #(
     reg [11:0] S_y_2d;
 
     localparam [11:0] CONTROL_X=SHOW_LOGO ? 12'd176:12'd16;
+    localparam [11:0] LATENCY_X=IMG_WIDTH-192;
     localparam LOGO_X = 12'd0;
     localparam LOGO_Y = 12'd0;
     localparam LOGO_W = 12'd160;
@@ -157,6 +162,44 @@ module hdmi_mixer #(
     reg [1:0] wb_sync;
     reg wb_seen;
     reg [127:0] wb_pending,wb_display;
+    // The source holds {valid,BCD} until the next analysed batch (many ms).
+    // Synchronize its event, capture the held packet, publish only at SOF.
+    (* ASYNC_REG="TRUE" *) reg [1:0] latency_sync;
+    reg latency_seen;
+    reg [16:0] latency_pending,latency_display;
+    localparam LATENCY_DIV_BITS=$clog2(LATENCY_DISPLAY_TICK_CYCLES+1);
+    reg [LATENCY_DIV_BITS-1:0] latency_age_div;
+    reg [13:0] latency_age;
+    always @(posedge I_clk or negedge I_rst_n) begin
+        if(!I_rst_n) begin
+            latency_sync<=0;latency_seen<=0;latency_pending<=0;latency_display<=0;
+            latency_age_div<=0;latency_age<=14'd10000;
+        end else if(LATENCY_DIAGNOSTICS) begin
+            latency_sync<={latency_sync[0],I_latency_upd};latency_seen<=latency_sync[1];
+            if(latency_seen!=latency_sync[1]) begin
+                latency_pending<={I_latency_valid,I_latency_bcd};latency_age<=0;latency_age_div<=0;
+            end else if(latency_age<10000) begin
+                if(latency_age_div==LATENCY_DISPLAY_TICK_CYCLES-1) begin
+                    latency_age_div<=0;latency_age<=latency_age+1'b1;
+                end else latency_age_div<=latency_age_div+1'b1;
+            end
+            if(I_video_user) latency_display<={latency_pending[16] && latency_age<10000,latency_pending[15:0]};
+        end
+    end
+    function [7:0] latency_char;
+        input [3:0] index;
+        begin
+            case(index)
+                0:latency_char="D";1:latency_char="E";2:latency_char="T";3:latency_char=":";
+                4:latency_char=latency_display[16] ? {4'h3,latency_display[15:12]}:"-";
+                5:latency_char=latency_display[16] ? {4'h3,latency_display[11:8]}:"-";
+                6:latency_char=latency_display[16] ? {4'h3,latency_display[7:4]}:"-";
+                7:latency_char=".";
+                8:latency_char=latency_display[16] ? {4'h3,latency_display[3:0]}:"-";
+                9:latency_char="m";10:latency_char="s";default:latency_char=" ";
+            endcase
+        end
+    endfunction
     // One frame-held source packet, independent of reference validity.
     // Capture after the event synchronizer; publish only at display SOF.
     always @(posedge I_clk or negedge I_rst_n) begin
@@ -267,9 +310,10 @@ module hdmi_mixer #(
                     if(index>=9 && index<13) begin selected_char=colour_hex(number[(12-index)*4+:4]);selected=1;end
                 end
                 5:begin
-                    text_bits="N:0000 F:0      ";
+                    text_bits="N:0000 CL:0 F:0 ";
                     if(index>=2 && index<6) begin selected_char=colour_hex(colour_display[24+(5-index)*4+:4]);selected=1;end
-                    if(index==9) begin selected_char=colour_display[18] ? "1":"0";selected=1;end
+                    if(index==10) begin selected_char=colour_display[21] ? "1":"0";selected=1;end
+                    if(index==14) begin selected_char=colour_display[18] ? "1":"0";selected=1;end
                 end
                 6:begin
                     case(colour_display[14:11])
@@ -808,7 +852,7 @@ module hdmi_mixer #(
 
     localparam [3:0] BAND_NONE = 4'd0, BAND_DYN = 4'd1, BAND_W2 = 4'd2, BAND_W3 = 4'd3,
                      BAND_W4 = 4'd4, BAND_ST = 4'd5, BAND_MO = 4'd6, BAND_TY = 4'd7, BAND_CO=4'd8, BAND_FX=4'd9, BAND_TARGET=4'd10,
-                     BAND_EXPOSURE=4'd11,BAND_GAIN=4'd12,BAND_COLOUR_DIAG=4'd13;
+                     BAND_EXPOSURE=4'd11,BAND_GAIN=4'd12,BAND_COLOUR_DIAG=4'd13,BAND_LATENCY=4'd14;
 
     //---- P0 组合：叠加线（测试直接观察这些名字）----
     wire S_line_on = !TARGET_ONLY && S_video_de_2d && S_meas_valid &&
@@ -862,8 +906,13 @@ module hdmi_mixer #(
             else if((!COMPACT_DIAGNOSTICS || WB_DIAGNOSTICS) && S_y_2d>=184 && S_y_2d<200) begin p0_band=BAND_COLOUR_DIAG;p0_ly=S_y_2d-184;p0_diag_row=5;end
             else if((!COMPACT_DIAGNOSTICS || WB_DIAGNOSTICS) && S_y_2d>=204 && S_y_2d<220) begin p0_band=BAND_COLOUR_DIAG;p0_ly=S_y_2d-204;p0_diag_row=6;end
         end
+        if(LATENCY_DIAGNOSTICS && S_video_de_2d &&
+           S_x_2d>=LATENCY_X && S_x_2d<LATENCY_X+176 && S_y_2d>=16 && S_y_2d<32) begin
+            p0_band=BAND_LATENCY;p0_ly=S_y_2d-12'd16;
+        end
     end
-    wire [11:0] p0_dx = p0_band==BAND_TARGET ? S_x_2d-S_label_x-12'd4 :
+    wire [11:0] p0_dx = p0_band==BAND_LATENCY ? S_x_2d-LATENCY_X :
+        p0_band==BAND_TARGET ? S_x_2d-S_label_x-12'd4 :
         (p0_band==BAND_EXPOSURE || p0_band==BAND_GAIN || p0_band==BAND_COLOUR_DIAG) ? S_x_2d-CONTROL_X :
         (TARGET_ONLY && p0_band==BAND_FX) ? S_x_2d-CONTROL_X : S_x_2d-W2_X;
 
@@ -874,6 +923,7 @@ module hdmi_mixer #(
         if(S_label_on || (TARGET_ONLY && p0_band==BAND_FX)) p0_base=24'h202020;
         if(p0_band==BAND_EXPOSURE || p0_band==BAND_GAIN) p0_base=24'h202020;
         if(p0_band==BAND_COLOUR_DIAG) p0_base=24'h202020;
+        if(p0_band==BAND_LATENCY) p0_base=24'h202020;
         if (DEBUG_MODE == 1) begin
             if      (S_x_2d < 12'd128) p0_base = 24'hff0000;
             else if (S_x_2d < 12'd256) p0_base = 24'h00ff00;
@@ -957,6 +1007,10 @@ module hdmi_mixer #(
         else if (c_dig_x < 8'd75) begin c_dig_i = 3'd4; c_dig_l = c_dig_x - 8'd60; end
         else                      begin c_dig_i = 3'd5; c_dig_l = c_dig_x - 8'd75; end
         case (p1_band)
+            BAND_LATENCY: begin
+                c_char=latency_char(p1_dx[7:4]);c_col=p1_dx[3:0];c_row=p1_ly[3:0];
+                c_ok=1;c_color=24'hffffff;
+            end
             BAND_COLOUR_DIAG: begin
                 if(WB_DIAGNOSTICS)
                     c_char=p1_diag_row==0 ? colour_diagnostic_char(3'd0,p1_dx[7:4]):

@@ -112,7 +112,7 @@ module tb_colour_diagnostic_osd;
     initial begin
         repeat(4) @(negedge clk);rst=1;
         reference=32'h07a0c080;
-        stats={24'hc03020,16'h1234,16'h5678,16'h9abc,16'hdef0,16'h1357,4'd0,1'b1,1'b1,3'd1,4'd4,11'd0};
+        stats={24'hc03020,16'h1234,16'h5678,16'h9abc,16'hdef0,16'h1357,2'd0,2'b10,1'b1,1'b1,3'd1,4'd4,11'd0};
         ref_upd=1;box_upd=1;repeat(6) @(negedge clk);
         if(dut.reference_display!==0 || dut.colour_display!==0) $fatal(1,"OSD changed mid frame");
         user=1;@(negedge clk);user=0;
@@ -122,7 +122,8 @@ module tb_colour_diagnostic_osd;
         character(2,4,"C");character(2,9,"0");
         character(3,2,"1");character(3,5,"4");character(3,9,"5");character(3,12,"8");
         character(4,2,"9");character(4,5,"C");character(4,9,"D");character(4,12,"0");
-        character(5,2,"1");character(5,5,"7");character(5,9,"1");character(6,4,"M");
+        character(5,2,"1");character(5,5,"7");character(5,9,":");character(5,10,"1");
+        character(5,14,"1");character(6,4,"M");
         reference=0;ref_upd=0;stats=0;box_upd=0;repeat(6) @(negedge clk);
         character(1,4,"A"); // still held until next display frame
         user=1;@(negedge clk);user=0;

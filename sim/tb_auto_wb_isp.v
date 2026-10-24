@@ -10,17 +10,27 @@ module tb_auto_wb_isp;
  reg [19:0] held_r,held_b;
  reg [95:0] expected[0:1023];
  integer sent=0,received=0;
+ wire [15:0] latency_bcd;wire latency_valid,latency_upd;
+ integer latency_cycle=0,latency_start=0,latency_starts=0,latency_checks=0,latency_ticks;
+ reg latency_seen=0;
  always #5 clk=~clk;
- isp_top #(.PARTS_MODE(1),.COLOR_STABILITY(0),.AUTO_WHITE_BALANCE(1),.MULTI_TARGETS(1),.VIDEO_MODES(1)) dut(
+ isp_top #(.PARTS_MODE(1),.COLOR_STABILITY(0),.AUTO_WHITE_BALANCE(1),.MULTI_TARGETS(1),.VIDEO_MODES(1),.LATENCY_DIAGNOSTICS(1)) dut(
  .axi4s_video_aclk(clk),.I_rst_n(rst),.I_tlast(eol),.I_tuser(sof),.I_tdata({16'd0,rgb}),
  .I_tvalid(valid),.I_tdest(10'd0),.O_tready(1'b1),.I_bin_en(1'b0),.I_morph_mode(2'b00),
  .I_awb_freeze(sw4),.I_camera_status(settings),.I_camera_status_upd(status_update),
- .O_wb_diag(diag),.O_color_reference(reference),.O_tvalid(ov),.O_tlast(ol));
+ .O_wb_diag(diag),.O_color_reference(reference),.O_tvalid(ov),.O_tlast(ol),
+ .O_latency_bcd(latency_bcd),.O_latency_valid(latency_valid),.O_latency_upd(latency_upd));
  function [7:0] gain(input [7:0] value,input [19:0] factor);
  reg [27:0] product;
  begin product=value*factor;gain=|product[27:24] ? 8'hff:product[23:16];end
  endfunction
  always @(posedge clk) begin
+  if(rst) begin
+   latency_cycle=latency_cycle+1;
+   if(dut.g_tire.u_tire.capture_valid && dut.g_tire.u_tire.capture_user && dut.g_tire.u_tire.take) begin
+    latency_start=latency_cycle;latency_starts=latency_starts+1;
+   end
+  end
   if(rst && dut.m_aixs_tvalid) begin
    for(integer lane=0;lane<4;lane=lane+1)
     expected[sent%1024][lane*24+:24]={gain(rgb[23:16],dut.u_awb.in_r_r1),rgb[15:8],gain(rgb[7:0],dut.u_awb.in_b_r1)};
@@ -28,6 +38,13 @@ module tb_auto_wb_isp;
   end
   #1;
   if(rst) begin
+   if(latency_upd!=latency_seen) begin
+    latency_ticks=(latency_cycle-latency_start)/11251;
+    if(!latency_valid || latency_starts==0 ||
+       latency_bcd[15:12]*1000+latency_bcd[11:8]*100+latency_bcd[7:4]*10+latency_bcd[3:0]!=latency_ticks)
+     $fatal(1,"ISP latency wiring/time got%h expected%0d",latency_bcd,latency_ticks);
+    latency_checks=latency_checks+1;latency_seen=latency_upd;
+   end
    if(dut.u_awb.gain_frozen!==0 || dut.g_tire.u_tire.COLOR_CALIBRATION!=0)
     $fatal(1,"production auto mode still depends on SW4/calibration");
    if(dut.awb_O_tvalid) begin
@@ -61,7 +78,8 @@ module tb_auto_wb_isp;
    $fatal(1,"ISP did not acquire/hold automatic gains R%h B%h ref%h",dut.u_awb.in_r_r1,dut.u_awb.in_b_r1,reference);
   if(beats!=6*720*240 || lines!=6*720 || sent!=received || diag[19:9]!==1024 || diag[8:5]!==2)
    $fatal(1,"ISP lost stream or centre diagnostic: beats%0d lines%0d sent%0d received%0d diag%h",beats,lines,sent,received,diag);
-  $display("ALL PASS automatic WB ISP: acquired despite red centre and SW4 high, HOLD after clipping/EXP event/SW4, %0d audited RGB beats, %0d packed words/%0d lines, centre diagnostic not overflowed",received,beats,lines);
+  if(latency_starts==0) $fatal(1,"ISP latency did not see an accepted batch");
+  $display("ALL PASS automatic WB ISP: acquired despite red centre and SW4 high, HOLD after clipping/EXP event/SW4, %0d audited RGB beats, %0d packed words/%0d lines, latency starts%0d publications%0d",received,beats,lines,latency_starts,latency_checks);
   $finish;
  end
  initial begin #25000000;$fatal(1,"auto WB ISP watchdog");end

@@ -844,6 +844,23 @@ module osd_char_lib (
                     default: O_row_bits = 16'h0000;
                 endcase
             end
+            8'h2d: O_row_bits=(I_row==7 || I_row==8) ? 16'h0ff0:16'h0000; // -
+            8'h2e: O_row_bits=(I_row==11 || I_row==12) ? 16'h0180:16'h0000; // .
+            8'h6d: begin // m
+                case(I_row)
+                    5,6:O_row_bits=16'h3660;
+                    7,8,9,10,11,12:O_row_bits=16'h4990;
+                    default:O_row_bits=16'h0000;
+                endcase
+            end
+            8'h73: begin // s
+                case(I_row)
+                    5,6,8,9,11,12:O_row_bits=16'h0ff0;
+                    7:O_row_bits=16'h1800;
+                    10:O_row_bits=16'h0018;
+                    default:O_row_bits=16'h0000;
+                endcase
+            end
             CHAR_COLON: begin
                 case(I_row)
                     4'd0: O_row_bits = 16'h0000;

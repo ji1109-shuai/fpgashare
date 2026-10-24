@@ -686,13 +686,57 @@ module img_parts_multi_tracker(
     end
 endmodule
 
+// 0.1 ms units; BCD carry increments only at the divided tick. No divider or
+// wide multiply in the pixel path. Tick value follows the camera clock report.
+module recognition_latency_meter #(parameter TICK_CYCLES=11251)(
+    input I_clk,I_rst_n,I_start,I_finish,I_abort,
+    output reg [15:0] O_bcd,output reg O_valid,O_upd
+);
+    localparam DIV_BITS=$clog2(TICK_CYCLES+1);
+    reg [DIV_BITS-1:0] prescale;
+    reg [15:0] elapsed;
+    reg armed;
+    wire tick=prescale==TICK_CYCLES-1;
+    function [15:0] next_bcd;
+        input [15:0] value;
+        begin
+            next_bcd=value+16'd1;
+            if(value[3:0]==9) begin
+                next_bcd={value[15:4]+12'd1,4'd0};
+                if(value[7:4]==9) begin
+                    next_bcd={value[15:8]+8'd1,8'd0};
+                    if(value[11:8]==9) next_bcd={value[15:12]+4'd1,12'd0};
+                end
+            end
+        end
+    endfunction
+    always @(posedge I_clk or negedge I_rst_n) begin
+        if(!I_rst_n) begin prescale<=0;elapsed<=0;armed<=0;O_bcd<=0;O_valid<=0;O_upd<=0;end
+        else if(I_abort) begin
+            armed<=0;
+            if(armed || O_valid) begin O_valid<=0;O_upd<=~O_upd;end
+        end else if(I_start) begin prescale<=0;elapsed<=0;armed<=1;end
+        else if(armed) begin
+            if(I_finish) begin
+                O_bcd<=tick ? next_bcd(elapsed):elapsed;
+                O_valid<=!(tick && elapsed==16'h9999);O_upd<=~O_upd;armed<=0;
+            end else if(tick) begin
+                prescale<=0;
+                if(elapsed==16'h9999) begin armed<=0;O_valid<=0;O_upd<=~O_upd;end
+                else elapsed<=next_bcd(elapsed);
+            end else prescale<=prescale+1'b1;
+        end
+    end
+endmodule
+
 module img_tire #(
     parameter BEATS_PER_LINE=320, LINES_PER_FRAME=720,
     parameter FG_IS_WHITE=0, CONFIRM_FRAMES=3,
     parameter LINE_X=640, LINE_HYST=32,
     parameter MIN_DIAM_CELLS=8, MIN_AREA_CELLS=16,
     parameter WHITE_BOARD=1, BOARD_MIN_CELLS=8, COLOR_MODE=0,
-    parameter PARTS_MODE=0, PARTS_WHITE_MARGIN=24, COLOR_CALIBRATION=0, MULTI_TARGETS=0
+    parameter PARTS_MODE=0, PARTS_WHITE_MARGIN=24, COLOR_CALIBRATION=0, MULTI_TARGETS=0,
+    parameter LATENCY_DIAGNOSTICS=0, LATENCY_TICK_CYCLES=11251
 )(
     input I_clk, I_rst_n,
     input [95:0] I_tdata,
@@ -720,7 +764,9 @@ module img_tire #(
     output reg [127:0] O_color_diag,
     output reg [223:0] O_targets,
     output reg [2:0] O_target_count,
-    output reg O_target_overflow
+    output reg O_target_overflow,
+    output [15:0] O_latency_bcd,
+    output O_latency_valid,O_latency_upd
 );
     // Split RGB comparisons from vote/column accumulation. Binary data and
     // markers take the same stage; color and shape stay on identical pixels.
@@ -830,6 +876,18 @@ module img_tire #(
     reg [19:0] hist_best;
     integer hi;
     wire take = capture_user ? (state==IDLE && !frame_done && !frame_error && !frame_end && frame_end_delay==0) : capturing;
+    // Passive observer of the accepted batch, not every incoming camera SOF.
+    // Finish on the very edge that publishes all slots, including empty scenes.
+    generate if(LATENCY_DIAGNOSTICS) begin : g_latency
+        recognition_latency_meter #(.TICK_CYCLES(LATENCY_TICK_CYCLES)) u_meter (
+            .I_clk(I_clk),.I_rst_n(I_rst_n),
+            .I_start(capture_valid && capture_user && take),
+            .I_finish(MULTI_TARGETS ? state==MULTI_PUBLISH : state==14),
+            .I_abort(frame_error),.O_bcd(O_latency_bcd),
+            .O_valid(O_latency_valid),.O_upd(O_latency_upd));
+    end else begin : g_no_latency
+        assign O_latency_bcd=0;assign O_latency_valid=0;assign O_latency_upd=0;
+    end endgenerate
     always @(posedge I_clk) begin
         if(PARTS_MODE && capture_valid && take) begin
             for(hi=0;hi<16;hi=hi+1)

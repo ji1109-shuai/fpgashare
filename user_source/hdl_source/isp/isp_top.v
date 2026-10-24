@@ -7,6 +7,7 @@ module isp_top #(
     parameter VIDEO_MODES = 0,      // wrapper enables new RGB/GRAY/SOBEL/EDGE preview
     parameter COLOR_STABILITY = 0,
     parameter MULTI_TARGETS = 0,
+    parameter LATENCY_DIAGNOSTICS = 0,
     parameter AUTO_WHITE_BALANCE = 0 // automatic neutral samples; independent of SW4
 )(
     input 			axi4s_video_aclk,
@@ -66,7 +67,9 @@ module isp_top #(
     output O_target_overflow,
     output [127:0] O_color_diag,
     output [127:0] O_wb_diag,
-    output O_wb_diag_upd
+    output O_wb_diag_upd,
+    output [15:0] O_latency_bcd,
+    output O_latency_valid,O_latency_upd
 );
  
 wire         m_aixs_tvalid;  //synthesis keep 
@@ -500,7 +503,8 @@ end endgenerate
 generate if (TIRE_MODE) begin : g_tire
     img_tire #(.BEATS_PER_LINE(320), .LINES_PER_FRAME(720),
         .FG_IS_WHITE(MEAS_FG_IS_WHITE),.WHITE_BOARD(1),.COLOR_MODE(1),.PARTS_MODE(PARTS_MODE),
-        .COLOR_CALIBRATION(COLOR_STABILITY),.MULTI_TARGETS(MULTI_TARGETS)) u_tire (
+        .COLOR_CALIBRATION(COLOR_STABILITY),.MULTI_TARGETS(MULTI_TARGETS),
+        .LATENCY_DIAGNOSTICS(LATENCY_DIAGNOSTICS)) u_tire (
         .I_clk(axi4s_video_aclk), .I_rst_n(I_rst_n),
         .I_tdata(bin_O_tdata), .I_tvalid(bin_O_tvalid),
         .I_rgb(recognition_rgb), .O_color(O_bbox_color),
@@ -521,12 +525,14 @@ generate if (TIRE_MODE) begin : g_tire
         .O_ring_valid(O_proj_valid), .O_status(O_proj_status),
         .I_color_reference(O_color_reference[15:8]),.I_color_epoch(color_epoch),
         .I_color_ready(awb_freeze_s && O_color_reference[26:24]==3'b111),
-        .O_color_diag(O_color_diag),.O_targets(O_targets),.O_target_count(O_target_count),.O_target_overflow(O_target_overflow));
+        .O_color_diag(O_color_diag),.O_targets(O_targets),.O_target_count(O_target_count),.O_target_overflow(O_target_overflow),
+        .O_latency_bcd(O_latency_bcd),.O_latency_valid(O_latency_valid),.O_latency_upd(O_latency_upd));
     assign O_roi_upd=O_bbox_upd;
     assign O_proj_upd=O_bbox_upd;
     assign O_proj_cx=O_proj_valid ? O_bbox_cx : 11'd0;
     assign O_proj_cy=O_proj_valid ? O_bbox_cy : 11'd0;
 end else begin : g_legacy_measurement
+assign O_latency_bcd=0;assign O_latency_valid=0;assign O_latency_upd=0;
 assign O_bbox_color=3'd0;
 assign O_color_diag=128'd0;
 assign O_targets=0;assign O_target_count=0;assign O_target_overflow=0;

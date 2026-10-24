@@ -1,5 +1,5 @@
 param([string]$VivadoRoot='D:/AMDDesignTools/2025.2/Vivado',
-    [string[]]$Tops=@('tb_parts_color_hsv','tb_parts_shape_pipeline','tb_parts','tb_parts_colours','tb_parts_multi_no_calibration','tb_parts_clean_overlay'),
+    [string[]]$Tops=@('tb_parts_color_hsv','tb_parts_shape_pipeline','tb_parts','tb_parts_colours','tb_parts_multi_no_calibration','tb_parts_clean_overlay','tb_recognition_latency','tb_parts_multi_latency','tb_latency_overlay'),
     [string]$BuildName='parts_validation')
 $ErrorActionPreference='Stop'
 $vivado=$VivadoRoot
@@ -18,7 +18,7 @@ New-Item -ItemType Directory -Force $build | Out-Null
 Push-Location $build
 try {
  Copy-Item ../../user_source/hdl_source/logo_idx.hex,../../user_source/hdl_source/logo_pal.hex -Destination . -Force
- & "$vivado/bin/unwrapped/win64.o/xvlog.exe" -sv ../../user_source/hdl_source/img_proj.v ../tb_parts_color_hsv.v ../tb_parts.v ../tb_parts_shape_pipeline.v ../tb_parts_multi.v ../../user_source/hdl_source/hdmi_mixer.v ../../user_source/hdl_source/osd_char_lib.v ../tb_multi_overlay.v
+ & "$vivado/bin/unwrapped/win64.o/xvlog.exe" -sv ../../user_source/hdl_source/img_proj.v ../tb_parts_color_hsv.v ../tb_parts.v ../tb_parts_shape_pipeline.v ../tb_parts_multi.v ../../user_source/hdl_source/hdmi_mixer.v ../../user_source/hdl_source/osd_char_lib.v ../tb_multi_overlay.v ../tb_recognition_latency.v ../tb_latency_overlay.v
  if($LASTEXITCODE -ne 0){throw 'Parts compile failed'}
  foreach($top in $Tops){
  & "$vivado/bin/unwrapped/win64.o/xelab.exe" $top -s $top -timescale 1ns/1ps
