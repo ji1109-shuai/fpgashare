@@ -846,6 +846,19 @@ module osd_char_lib (
             end
             8'h2d: O_row_bits=(I_row==7 || I_row==8) ? 16'h0ff0:16'h0000; // -
             8'h2e: O_row_bits=(I_row==11 || I_row==12) ? 16'h0180:16'h0000; // .
+            8'h2f: begin // /
+                case(I_row)
+                    4'd2: O_row_bits=16'h0060;
+                    4'd3: O_row_bits=16'h00c0;
+                    4'd4: O_row_bits=16'h0180;
+                    4'd5: O_row_bits=16'h0300;
+                    4'd6: O_row_bits=16'h0600;
+                    4'd7: O_row_bits=16'h0c00;
+                    4'd8: O_row_bits=16'h1800;
+                    4'd9: O_row_bits=16'h3000;
+                    default: O_row_bits=16'h0000;
+                endcase
+            end
             8'h6d: begin // m
                 case(I_row)
                     5,6:O_row_bits=16'h3660;
@@ -888,3 +901,11 @@ module osd_char_lib (
 
 endmodule
 
+
+// Synchronous ERAM ROM: exactly replaces the existing P3 register latency.
+module osd_font_sync(input I_clk,input [7:0] I_char,input [3:0] I_row,
+    output reg [15:0] O_row_bits);
+    (* ram_style="bram" *) reg [15:0] font_rows[0:2047];
+    initial $readmemh("industrial_font16.hex",font_rows);
+    always @(posedge I_clk) O_row_bits<=font_rows[{I_char[6:0],I_row}];
+endmodule

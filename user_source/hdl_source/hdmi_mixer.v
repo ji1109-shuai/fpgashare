@@ -11,13 +11,21 @@ module hdmi_mixer #(
     parameter integer TARGET_ONLY = 0, // wrapper enables clean, confirmed-target display
     parameter integer PARTS_MODE = 0,   // same classification vocabulary as isp_top
     parameter integer CAMERA_CONTROL = 0,
+    parameter integer AE_DIAGNOSTICS = 0,
     parameter integer COLOR_DIAGNOSTICS = 0,
     parameter integer SHOW_LOGO = 0,
     parameter integer COMPACT_DIAGNOSTICS = 0,
     parameter integer MULTI_TARGETS = 0,
+    // Display-domain box interpolation.  Detection packets arrive more slowly
+    // than HDMI frames, so advancing a confirmed box a few pixels per display
+    // frame makes conveyor motion look continuous without touching recognition.
+    parameter integer BOX_TRACKING = 0,
+    parameter integer BOX_TRACK_STEP = 8,
+    parameter integer BOX_TRACK_SNAP = 96,
     parameter integer WB_DIAGNOSTICS = 0,
     parameter integer AUTO_WHITE_BALANCE = 0,
     parameter integer LATENCY_DIAGNOSTICS = 0,
+    parameter integer FPS_DISPLAY = 0,
     parameter integer LATENCY_DISPLAY_TICK_CYCLES = 7500
 )(
     input wire        I_clk,
@@ -59,6 +67,8 @@ module hdmi_mixer #(
     input wire [2:0]  I_display_mode,
     input wire [28:0] I_camera_status,
     input wire I_camera_status_upd,
+    input wire [24:0] I_ae_diagnostics,
+    input wire I_ae_diagnostics_upd,
     input wire [31:0] I_color_reference,
     input wire I_color_reference_upd,
     input wire [127:0] I_color_diag,
@@ -67,8 +77,29 @@ module hdmi_mixer #(
     input wire [223:0] I_targets,
     input wire [2:0] I_target_count,
     input wire I_target_overflow,
+    input wire [47:0] I_batch_counts_bcd,
+    input wire [47:0] I_batch_total_counts_bcd,
+    input wire I_batch_wait_clear,
+    input wire [1:0] I_enhance_strength,
+    input wire [3:0] I_enhance_noise,
+    input wire I_enhance_compare,
+    input wire [47:0] I_batch_targets_bcd,
+    input wire [2:0] I_batch_filter_type,
+    input wire I_batch_done,
+    input wire I_batch_overrun,
+    input wire [3:0] I_batch_overrun_mask,
+    input wire I_menu_open,
+    input wire [3:0] I_menu_index,
+    input wire [2:0] I_menu_preview_mode,
+    input wire [2:0] I_menu_motor_level,
+    input wire I_menu_awb_freeze,
+    input wire I_menu_ae_auto,
+    input wire I_menu_ae_locked,
+    input wire [4:0] I_menu_ae_target_level,
     input wire [15:0] I_latency_bcd,
     input wire I_latency_valid,I_latency_upd,
+    input wire [11:0] I_fps_bcd,
+    input wire I_fps_update,
     input wire        I_bbox_moving,     // 1=工件运动中（帧间位移超阈值）
     input wire [23:0] I_bbox_cnt,        // 工件计数 BCD {d5..d0}
     input wire        I_bbox_valid,      // 本帧存在前景
@@ -101,6 +132,10 @@ module hdmi_mixer #(
 
     localparam [11:0] CONTROL_X=SHOW_LOGO ? 12'd176:12'd16;
     localparam [11:0] LATENCY_X=IMG_WIDTH-192;
+    localparam [11:0] MENU_X=12'd976;
+    localparam [11:0] MENU_Y=12'd48;
+    localparam [11:0] MENU_W=12'd288;
+    localparam [11:0] MENU_H=12'd368;
     localparam LOGO_X = 12'd0;
     localparam LOGO_Y = 12'd0;
     localparam LOGO_W = 12'd160;
@@ -122,6 +157,7 @@ module hdmi_mixer #(
     localparam CHAR_T            = 8'h54;
     localparam CHAR_0            = 8'h30;
     localparam CHAR_COLON        = 8'h3a;
+    localparam CHAR_SLASH        = 8'h2f;
     localparam CHAR_W            = 8'h57;
     localparam CHAR_I            = 8'h49;
 
@@ -155,6 +191,19 @@ module hdmi_mixer #(
     reg [1:0] camera_sync;
     reg camera_seen;
     reg [28:0] camera_pending,camera_display;
+    reg [1:0] ae_diag_sync;
+    reg ae_diag_seen;
+    reg [24:0] ae_diag_pending,ae_diag_frame;
+    always @(posedge I_clk or negedge I_rst_n) begin
+        if(!I_rst_n) begin
+            ae_diag_sync<=0;ae_diag_seen<=0;ae_diag_pending<=0;ae_diag_frame<=0;
+        end else if(AE_DIAGNOSTICS) begin
+            ae_diag_sync<={ae_diag_sync[0],I_ae_diagnostics_upd};
+            ae_diag_seen<=ae_diag_sync[1];
+            if(ae_diag_seen!=ae_diag_sync[1]) ae_diag_pending<=I_ae_diagnostics;
+            if(I_video_user) ae_diag_frame<=ae_diag_pending;
+        end
+    end
     reg [1:0] reference_sync,colour_sync;
     reg reference_seen,colour_seen;
     reg [31:0] reference_pending,reference_display;
@@ -170,6 +219,19 @@ module hdmi_mixer #(
     localparam LATENCY_DIV_BITS=$clog2(LATENCY_DISPLAY_TICK_CYCLES+1);
     reg [LATENCY_DIV_BITS-1:0] latency_age_div;
     reg [13:0] latency_age;
+    (* ASYNC_REG="TRUE" *) reg [1:0] fps_sync;
+    reg fps_seen,fps_received,fps_frame_valid;
+    reg [11:0] fps_pending,fps_frame;
+    always @(posedge I_clk or negedge I_rst_n) begin
+        if(!I_rst_n) begin
+            fps_sync<=0;fps_seen<=0;fps_pending<=0;fps_frame<=0;
+            fps_received<=0;fps_frame_valid<=0;
+        end else if(FPS_DISPLAY) begin
+            fps_sync<={fps_sync[0],I_fps_update};fps_seen<=fps_sync[1];
+            if(fps_seen!=fps_sync[1]) begin fps_pending<=I_fps_bcd;fps_received<=1;end
+            if(I_video_user) begin fps_frame<=fps_pending;fps_frame_valid<=fps_received;end
+        end
+    end
     always @(posedge I_clk or negedge I_rst_n) begin
         if(!I_rst_n) begin
             latency_sync<=0;latency_seen<=0;latency_pending<=0;latency_display<=0;
@@ -345,6 +407,8 @@ module hdmi_mixer #(
             if(I_video_user && mode_sample==mode_sync2) display_mode<=mode_sample;
         end
     end
+    reg [1:0] visual_compare_sync;
+    reg visual_compare_frame;
     function [7:0] display_mode_char;
         input [2:0] mode;
         input [2:0] index;
@@ -354,6 +418,7 @@ module hdmi_mixer #(
                 0: word_bits="RGB  ";1: word_bits="GRAY ";
                 2: word_bits="SOBEL";3: word_bits="EDGE ";
                 5: word_bits="ERODE";6: word_bits="DILAT";
+                7: word_bits=visual_compare_frame ? "SPLIT":"ENHN ";
                 default: word_bits="BIN  ";
             endcase
             display_mode_char=word_bits>>((4-index)*8);
@@ -542,19 +607,102 @@ module hdmi_mixer #(
         S_y_2d>=S_single_label_y && S_y_2d<S_single_label_y+TARGET_LABEL_H;
     // Source list is held across the synchronized update event. Publish at
     // display SOF so the four boxes, labels and removals change together.
+    // In production, interpolate only the four coordinates in this HDMI clock
+    // domain.  Shape/colour remain the latest confirmed recognition result.
     reg [223:0] targets_pending,targets_display;
     reg [2:0] target_count_pending,target_count_display;
     reg target_overflow_pending,target_overflow_display;
+    reg [2:0] box_track_slot;
+    reg targets_update_deferred;
+    reg [55:0] box_track_current,box_track_target;
+    localparam [10:0] BOX_TRACK_STEP_W = BOX_TRACK_STEP;
+    localparam [10:0] BOX_TRACK_SNAP_W = BOX_TRACK_SNAP;
+
+    function [10:0] track_box_coord;
+        input [10:0] current_coord;
+        input [10:0] target_coord;
+        begin
+            if(target_coord > current_coord + BOX_TRACK_STEP_W)
+                track_box_coord = current_coord + BOX_TRACK_STEP_W;
+            else if(current_coord > target_coord + BOX_TRACK_STEP_W)
+                track_box_coord = current_coord - BOX_TRACK_STEP_W;
+            else
+                track_box_coord = target_coord;
+        end
+    endfunction
+
+    function [55:0] track_box_packet;
+        input [55:0] current_item;
+        input [55:0] target_item;
+        reg far_jump;
+        begin
+            far_jump =
+                (target_item[43:33] > current_item[43:33] + BOX_TRACK_SNAP_W) ||
+                (current_item[43:33] > target_item[43:33] + BOX_TRACK_SNAP_W) ||
+                (target_item[21:11] > current_item[21:11] + BOX_TRACK_SNAP_W) ||
+                (current_item[21:11] > target_item[21:11] + BOX_TRACK_SNAP_W);
+            if(!target_item[55])
+                track_box_packet = 56'd0;
+            else if(!current_item[55] || current_item[54:52] != target_item[54:52] || far_jump)
+                track_box_packet = target_item;
+            else begin
+                track_box_packet = target_item;
+                track_box_packet[43:33] = track_box_coord(current_item[43:33],target_item[43:33]);
+                track_box_packet[32:22] = track_box_coord(current_item[32:22],target_item[32:22]);
+                track_box_packet[21:11] = track_box_coord(current_item[21:11],target_item[21:11]);
+                track_box_packet[10:0]  = track_box_coord(current_item[10:0], target_item[10:0]);
+            end
+        end
+    endfunction
+
+    // Share one interpolation datapath across four target slots.  The four
+    // updates finish in the first four pixel clocks of a display frame.
+    always @(*) begin
+        case(box_track_slot[1:0])
+            2'd0: begin box_track_current=targets_display[55:0];    box_track_target=targets_pending[55:0];    end
+            2'd1: begin box_track_current=targets_display[111:56];  box_track_target=targets_pending[111:56];  end
+            2'd2: begin box_track_current=targets_display[167:112]; box_track_target=targets_pending[167:112]; end
+            default: begin box_track_current=targets_display[223:168];box_track_target=targets_pending[223:168];end
+        endcase
+    end
+
     always @(posedge I_clk or negedge I_rst_n) begin
         if(!I_rst_n) begin
             targets_pending<=0;targets_display<=0;target_count_pending<=0;target_count_display<=0;
             target_overflow_pending<=0;target_overflow_display<=0;
+            box_track_slot<=3'd4;targets_update_deferred<=1'b0;
         end else if(MULTI_TARGETS) begin
             if(S_btog_d!=S_btog_sync[1]) begin
-                targets_pending<=I_targets;target_count_pending<=I_target_count;target_overflow_pending<=I_target_overflow;
+                // Do not replace the four-slot source packet while the shared
+                // interpolator is consuming it.  The source packet is held
+                // until the next update, so deferring four clocks is safe.
+                if(BOX_TRACKING && !box_track_slot[2])
+                    targets_update_deferred<=1'b1;
+                else begin
+                    targets_pending<=I_targets;target_count_pending<=I_target_count;target_overflow_pending<=I_target_overflow;
+                    targets_update_deferred<=1'b0;
+                end
             end
             if(I_video_user) begin
-                targets_display<=targets_pending;target_count_display<=target_count_pending;target_overflow_display<=target_overflow_pending;
+                if(BOX_TRACKING)
+                    box_track_slot<=3'd0;
+                else begin
+                    targets_display<=targets_pending;
+                    box_track_slot<=3'd4;
+                end
+                target_count_display<=target_count_pending;target_overflow_display<=target_overflow_pending;
+            end else if(BOX_TRACKING && !box_track_slot[2]) begin
+                case(box_track_slot[1:0])
+                    2'd0: targets_display[55:0]    <= track_box_packet(box_track_current,box_track_target);
+                    2'd1: targets_display[111:56]  <= track_box_packet(box_track_current,box_track_target);
+                    2'd2: targets_display[167:112] <= track_box_packet(box_track_current,box_track_target);
+                    default: targets_display[223:168] <= track_box_packet(box_track_current,box_track_target);
+                endcase
+                box_track_slot <= box_track_slot==3'd3 ? 3'd4:box_track_slot+1'b1;
+            end
+            if(BOX_TRACKING && targets_update_deferred && box_track_slot[2] && !I_video_user) begin
+                targets_pending<=I_targets;target_count_pending<=I_target_count;target_overflow_pending<=I_target_overflow;
+                targets_update_deferred<=1'b0;
             end
         end
     end
@@ -780,6 +928,90 @@ module hdmi_mixer #(
             {S_cnt_d5, S_cnt_d4, S_cnt_d3, S_cnt_d2, S_cnt_d1, S_cnt_d0} <= S_bbox_cnt_p;
     end
 
+    // Batch status crosses from the 50 MHz control domain.  The buses change
+    // only on a debounced key press or a target publication, so two-stage
+    // sampling followed by a video-frame latch is sufficient bundled-data CDC.
+    reg [47:0] batch_counts_meta,batch_counts_sync,batch_counts_frame;
+    reg [47:0] batch_targets_meta,batch_targets_sync,batch_targets_frame;
+    reg [2:0] batch_filter_meta,batch_filter_sync,batch_filter_frame;
+    reg batch_done_meta,batch_done_sync,batch_done_frame;
+    reg batch_overrun_meta,batch_overrun_sync,batch_overrun_frame;
+    reg [3:0] batch_overrun_mask_meta,batch_overrun_mask_sync,batch_overrun_mask_frame;
+    reg [13:0] menu_meta,menu_sync,menu_frame;
+    reg [4:0] ae_target_meta,ae_target_sync,ae_target_frame;
+    reg [47:0] total_meta,total_sync,total_frame;
+    reg [6:0] enhance_meta,enhance_sync,enhance_frame;
+    always @(posedge I_clk or negedge I_rst_n) begin
+        if(!I_rst_n) begin visual_compare_sync<=0;visual_compare_frame<=0;end
+        else begin
+            case(I_enhance_compare) 1'b1:visual_compare_sync<={visual_compare_sync[0],1'b1};
+                default:visual_compare_sync<={visual_compare_sync[0],1'b0};endcase
+            if(I_video_user) visual_compare_frame<=visual_compare_sync[1];
+        end
+    end
+    always @(posedge I_clk or negedge I_rst_n) begin
+        if(!I_rst_n) begin
+            batch_counts_meta<=0;batch_counts_sync<=0;batch_counts_frame<=0;
+            batch_targets_meta<=48'h000000000010;batch_targets_sync<=48'h000000000010;batch_targets_frame<=48'h000000000010;
+            batch_filter_meta<=0;batch_filter_sync<=0;batch_filter_frame<=0;
+            batch_done_meta<=0;batch_done_sync<=0;batch_done_frame<=0;
+            batch_overrun_meta<=0;batch_overrun_sync<=0;batch_overrun_frame<=0;
+            batch_overrun_mask_meta<=0;batch_overrun_mask_sync<=0;batch_overrun_mask_frame<=0;
+            menu_meta<=0;menu_sync<=0;menu_frame<=0;
+            ae_target_meta<=19;ae_target_sync<=19;ae_target_frame<=19;
+            total_meta<=0;total_sync<=0;total_frame<=0;
+            enhance_meta<={1'b0,2'd2,4'd4};enhance_sync<={1'b0,2'd2,4'd4};enhance_frame<={1'b0,2'd2,4'd4};
+        end else begin
+            batch_counts_meta<=I_batch_counts_bcd;batch_counts_sync<=batch_counts_meta;
+            batch_targets_meta<=I_batch_targets_bcd;batch_targets_sync<=batch_targets_meta;
+            batch_filter_meta<=I_batch_filter_type;batch_filter_sync<=batch_filter_meta;
+            batch_done_meta<=I_batch_done;batch_done_sync<=batch_done_meta;
+            batch_overrun_meta<=I_batch_overrun;batch_overrun_sync<=batch_overrun_meta;
+            batch_overrun_mask_meta<=I_batch_overrun_mask;batch_overrun_mask_sync<=batch_overrun_mask_meta;
+            menu_meta<={I_menu_ae_locked,I_menu_open,I_menu_index,I_menu_preview_mode,
+                       I_menu_motor_level,I_menu_awb_freeze,I_menu_ae_auto};
+            menu_sync<=menu_meta;
+            ae_target_meta<=I_menu_ae_target_level;ae_target_sync<=ae_target_meta;
+            total_meta<=I_batch_total_counts_bcd;total_sync<=total_meta;
+            enhance_meta<={I_batch_wait_clear,I_enhance_strength,I_enhance_noise};enhance_sync<=enhance_meta;
+            if(I_video_user) begin
+                batch_counts_frame<=batch_counts_sync;
+                batch_targets_frame<=batch_targets_sync;
+                batch_filter_frame<=batch_filter_sync;
+                batch_done_frame<=batch_done_sync;
+                batch_overrun_frame<=batch_overrun_sync;
+                batch_overrun_mask_frame<=batch_overrun_mask_sync;
+                menu_frame<=menu_sync;total_frame<=total_sync;enhance_frame<=enhance_sync;
+                if(ae_target_sync>=8 && ae_target_sync<=24) ae_target_frame<=ae_target_sync;
+            end
+        end
+    end
+    wire menu_open_frame=menu_frame[12];
+    wire [3:0] menu_index_frame=menu_frame[11:8];
+    wire [2:0] menu_preview_frame=menu_frame[7:5];
+    wire [2:0] menu_motor_frame=menu_frame[4:2];
+    wire menu_awb_frame=menu_frame[1];
+    wire menu_ae_auto_frame=menu_frame[0];
+    wire menu_ae_locked_frame=menu_frame[13];
+    function [11:0] ae_target_bcd;
+        input [4:0] level;
+        begin
+            case(level)
+                8:ae_target_bcd=12'h064;9:ae_target_bcd=12'h072;
+                10:ae_target_bcd=12'h080;11:ae_target_bcd=12'h088;
+                12:ae_target_bcd=12'h096;13:ae_target_bcd=12'h104;
+                14:ae_target_bcd=12'h112;15:ae_target_bcd=12'h120;
+                16:ae_target_bcd=12'h128;17:ae_target_bcd=12'h136;
+                18:ae_target_bcd=12'h144;19:ae_target_bcd=12'h152;
+                20:ae_target_bcd=12'h160;21:ae_target_bcd=12'h168;
+                22:ae_target_bcd=12'h176;23:ae_target_bcd=12'h184;
+                24:ae_target_bcd=12'h192;default:ae_target_bcd=12'h152;
+            endcase
+        end
+    endfunction
+    wire [11:0] ae_target_digits=ae_target_bcd(ae_target_frame);
+    wire [4:0] ae_stable_display=menu_ae_locked_frame ? 5'd16 : ae_diag_frame[13:9];
+
     //---- 十进制转换：3 级流水（源值整帧稳定，帧头锁存后 3 拍就绪，
     //     远早于 OSD 行 y=152）----
     reg        W_ge_a, H_ge_a, V_a;
@@ -852,7 +1084,7 @@ module hdmi_mixer #(
 
     localparam [3:0] BAND_NONE = 4'd0, BAND_DYN = 4'd1, BAND_W2 = 4'd2, BAND_W3 = 4'd3,
                      BAND_W4 = 4'd4, BAND_ST = 4'd5, BAND_MO = 4'd6, BAND_TY = 4'd7, BAND_CO=4'd8, BAND_FX=4'd9, BAND_TARGET=4'd10,
-                     BAND_EXPOSURE=4'd11,BAND_GAIN=4'd12,BAND_COLOUR_DIAG=4'd13,BAND_LATENCY=4'd14;
+                     BAND_EXPOSURE=4'd11,BAND_GAIN=4'd12,BAND_COLOUR_DIAG=4'd13,BAND_LATENCY=4'd14,BAND_BATCH=4'd15;
 
     //---- P0 组合：叠加线（测试直接观察这些名字）----
     wire S_line_on = !TARGET_ONLY && S_video_de_2d && S_meas_valid &&
@@ -866,10 +1098,15 @@ module hdmi_mixer #(
          ((S_x_2d == S_hole_x) && (S_y_2d+12'd3 >= S_hole_y) &&
           (S_y_2d <= {1'b0,S_hole_y}+12'd3)));
 
+    wire menu_panel_on=menu_open_frame && S_video_de_2d && S_x_2d>=MENU_X &&
+        S_x_2d<MENU_X+MENU_W && S_y_2d>=MENU_Y && S_y_2d<MENU_Y+MENU_H;
+    wire [11:0] menu_local_y=S_y_2d-MENU_Y-16;
+    wire menu_text_on=menu_panel_on && S_x_2d>=MENU_X+16 && S_x_2d<MENU_X+272 &&
+        S_y_2d>=MENU_Y+16 && S_y_2d<MENU_Y+352;
     //---- P0 组合：文本带选择 ----
     reg  [3:0]  p0_band;
     reg  [11:0] p0_ly;
-    reg [2:0] p0_diag_row;
+    reg [3:0] p0_diag_row;
     always @(*) begin
         p0_band = BAND_NONE;
         p0_ly   = 12'd0;
@@ -886,16 +1123,23 @@ module hdmi_mixer #(
             else if (DISPLAY_MODES && S_y_2d >= MODE_Y && S_y_2d < MODE_Y + 12'd16) begin p0_band=BAND_FX;p0_ly=S_y_2d-MODE_Y;end
         end
         if(TARGET_ONLY && DISPLAY_MODES && S_video_de_2d &&
-           S_x_2d>=CONTROL_X && S_x_2d<CONTROL_X+80 && S_y_2d>=16 && S_y_2d<32) begin
-            p0_band=BAND_FX;p0_ly=S_y_2d-12'd16;
+           S_x_2d>=CONTROL_X && S_x_2d<CONTROL_X+208 && S_y_2d>=20 && S_y_2d<36) begin
+            p0_band=BAND_FX;p0_ly=S_y_2d-12'd20;
         end
         if(S_label_on && S_x_2d>=S_label_x+4 && S_x_2d<S_label_x+TARGET_LABEL_W-4 &&
            S_y_2d>=S_label_y+2 && S_y_2d<S_label_y+18) begin
             p0_band=BAND_TARGET;p0_ly=S_y_2d-S_label_y-12'd2;
         end
-        if(CAMERA_CONTROL && S_video_de_2d && S_x_2d>=CONTROL_X && S_x_2d<CONTROL_X+128) begin
+        if(CAMERA_CONTROL && S_video_de_2d && S_x_2d>=CONTROL_X && S_x_2d<CONTROL_X+208) begin
             if(S_y_2d>=40 && S_y_2d<56) begin p0_band=BAND_EXPOSURE;p0_ly=S_y_2d-12'd40;end
             else if(S_y_2d>=60 && S_y_2d<76) begin p0_band=BAND_GAIN;p0_ly=S_y_2d-12'd60;end
+        end
+        if(PARTS_MODE && S_video_de_2d && S_x_2d>=CONTROL_X && S_x_2d<CONTROL_X+256) begin
+            if(S_y_2d>=80 && S_y_2d<96) begin p0_band=BAND_COLOUR_DIAG;p0_ly=S_y_2d-80;p0_diag_row=12;end
+            if(S_y_2d>=100 && S_y_2d<116) begin p0_band=BAND_BATCH;p0_ly=S_y_2d-100;p0_diag_row=0;end
+            if(S_y_2d>=120 && S_y_2d<136) begin p0_band=BAND_BATCH;p0_ly=S_y_2d-120;p0_diag_row=1;end
+            if(S_y_2d>=140 && S_y_2d<156) begin p0_band=BAND_BATCH;p0_ly=S_y_2d-140;p0_diag_row=2;end
+            if(S_y_2d>=160 && S_y_2d<176) begin p0_band=BAND_BATCH;p0_ly=S_y_2d-160;p0_diag_row=3;end
         end
         if(COLOR_DIAGNOSTICS && S_video_de_2d && S_x_2d>=CONTROL_X && S_x_2d<CONTROL_X+256) begin
             if(S_y_2d>=84 && S_y_2d<100) begin p0_band=BAND_COLOUR_DIAG;p0_ly=S_y_2d-84;p0_diag_row=0;end
@@ -910,20 +1154,44 @@ module hdmi_mixer #(
            S_x_2d>=LATENCY_X && S_x_2d<LATENCY_X+176 && S_y_2d>=16 && S_y_2d<32) begin
             p0_band=BAND_LATENCY;p0_ly=S_y_2d-12'd16;
         end
+        // Keep batch safety visible without the two AE debug rows.
+        if(PARTS_MODE && S_video_de_2d && S_x_2d>=CONTROL_X && S_x_2d<CONTROL_X+256 &&
+           S_y_2d>=180 && S_y_2d<196) begin
+            p0_band=BAND_COLOUR_DIAG;p0_ly=S_y_2d-12'd180;p0_diag_row=15;
+        end
+        // Text, boxes and old labels cannot bleed through menu padding.
+        if(FPS_DISPLAY && PARTS_MODE && S_video_de_2d && S_x_2d>=CONTROL_X && S_x_2d<CONTROL_X+256 &&
+           S_y_2d>=200 && S_y_2d<216) begin
+            p0_band=BAND_COLOUR_DIAG;p0_ly=S_y_2d-12'd200;p0_diag_row=14;
+        end
+        if(menu_panel_on) begin
+            p0_band=BAND_NONE;
+            if(menu_text_on) begin
+                p0_band=BAND_COLOUR_DIAG;p0_ly=menu_local_y[4:0];p0_diag_row=menu_local_y[8:5];
+            end
+        end
     end
     wire [11:0] p0_dx = p0_band==BAND_LATENCY ? S_x_2d-LATENCY_X :
         p0_band==BAND_TARGET ? S_x_2d-S_label_x-12'd4 :
-        (p0_band==BAND_EXPOSURE || p0_band==BAND_GAIN || p0_band==BAND_COLOUR_DIAG) ? S_x_2d-CONTROL_X :
+        (p0_band==BAND_COLOUR_DIAG && menu_text_on) ? S_x_2d-MENU_X-16 :
+        (p0_band==BAND_EXPOSURE || p0_band==BAND_GAIN || p0_band==BAND_COLOUR_DIAG || p0_band==BAND_BATCH) ? S_x_2d-CONTROL_X :
         (TARGET_ONLY && p0_band==BAND_FX) ? S_x_2d-CONTROL_X : S_x_2d-W2_X;
 
     //---- P0 组合：调试底图 ----
     reg [23:0] p0_base;
     always @(*) begin
         p0_base = S_aligned_video_data;
-        if(S_label_on || (TARGET_ONLY && p0_band==BAND_FX)) p0_base=24'h202020;
-        if(p0_band==BAND_EXPOSURE || p0_band==BAND_GAIN) p0_base=24'h202020;
-        if(p0_band==BAND_COLOUR_DIAG) p0_base=24'h202020;
+        if(S_label_on) p0_base=24'h202020;
+        // Production information overlays the camera, including spaces in each row.
+        if(!TARGET_ONLY && (p0_band==BAND_EXPOSURE || p0_band==BAND_GAIN ||
+           p0_band==BAND_BATCH || p0_band==BAND_COLOUR_DIAG)) p0_base=24'h202020;
         if(p0_band==BAND_LATENCY) p0_base=24'h202020;
+        if(menu_panel_on) begin
+            p0_base=24'h15202e;
+            if(S_x_2d==MENU_X || S_x_2d==MENU_X+MENU_W-1 || S_y_2d==MENU_Y || S_y_2d==MENU_Y+MENU_H-1) p0_base=24'h45627b;
+            if(menu_local_y[8:5]==0 && S_y_2d>=MENU_Y+16) p0_base=24'h24374a;
+            if(menu_text_on && menu_local_y[8:5]=={1'b0,menu_index_frame[2:0]}+1'b1) p0_base=24'h214e69;
+        end
         if (DEBUG_MODE == 1) begin
             if      (S_x_2d < 12'd128) p0_base = 24'hff0000;
             else if (S_x_2d < 12'd256) p0_base = 24'h00ff00;
@@ -957,7 +1225,7 @@ module hdmi_mixer #(
     reg [3:0]  p1_band;
     reg [7:0]  p1_dx;
     reg [4:0]  p1_ly;
-    reg [2:0] p1_diag_row;
+    reg [3:0] p1_diag_row;
     reg [2:0] p1_target_shape,p1_target_colour;
     reg [4:0]  p1_ovl;          // {roi, box, hole_center, line, probe}
     reg        p1_logo_in;
@@ -978,7 +1246,7 @@ module hdmi_mixer #(
             p1_ly   <= p0_ly[4:0];
             p1_diag_row<=p0_diag_row;
             p1_target_shape<=label_shape;p1_target_colour<=label_colour;
-            p1_ovl  <= (DEBUG_MODE == 0) ? {S_roi_on, S_box_on, S_hole_center_on, S_line_on, S_probe_on} : 5'd0;
+            p1_ovl  <= (DEBUG_MODE == 0 && !menu_panel_on) ? {S_roi_on, S_box_on, S_hole_center_on, S_line_on, S_probe_on} : 5'd0;
             p1_logo_in <= (!TARGET_ONLY || SHOW_LOGO) && (DEBUG_MODE == 0) && S_video_de_2d &&
                           (S_x_2d >= LOGO_X + LOGO_CX0) && (S_x_2d < LOGO_X + LOGO_CX0 + LOGO_CW) &&
                           (S_y_2d >= LOGO_Y + LOGO_CY0) && (S_y_2d < LOGO_Y + LOGO_CY0 + LOGO_CH);
@@ -987,6 +1255,10 @@ module hdmi_mixer #(
         end
     end
 
+    reg p1_is_menu;
+    always @(posedge I_clk or negedge I_rst_n) begin
+        if(!I_rst_n) p1_is_menu<=0;else p1_is_menu<=menu_text_on;
+    end
     //---- P1 组合：字符译码 ----
     reg [7:0]  c_char;
     reg [3:0]  c_row, c_col;
@@ -995,9 +1267,18 @@ module hdmi_mixer #(
     reg [7:0]  c_dig_x;       // 数字区局部 x（相对首个数字）
     reg [2:0]  c_dig_i;
     reg [3:0]  c_dig_l;       // 数字格内列 0..14
+    reg [11:0] c_batch_count,c_batch_target,c_batch_total;
+    reg [127:0] ui_text;
+    reg [3:0] ui_item;
+    reg [2:0] c_batch_type;
+    reg c_batch_overrun;
+    // Choose glyph contrast from the underlying camera pixel; no HUD backplate.
+    wire hud_light_bg=(p1_base[23] && p1_base[15]) ||
+        (p1_base[23] && p1_base[7]) || (p1_base[15] && p1_base[7]);
     always @(*) begin
         c_char = 8'h20; c_row = 4'd0; c_col = 4'd0; c_ok = 1'b0; c_color = COLOR_WIDTH;
         c_dig_x = 8'd0; c_dig_i = 3'd0; c_dig_l = 4'd0;
+        c_batch_count=0;c_batch_target=0;c_batch_total=0;c_batch_type=1;c_batch_overrun=0;ui_text="                ";ui_item=0;
         // 数字格：15 像素一格，比较链求格号（不用除法）
         c_dig_x = (p1_band == BAND_DYN) ? p1_dx - 8'd110 : p1_dx - 8'd28;
         if      (c_dig_x < 8'd15) begin c_dig_i = 3'd0; c_dig_l = c_dig_x[3:0]; end
@@ -1007,34 +1288,124 @@ module hdmi_mixer #(
         else if (c_dig_x < 8'd75) begin c_dig_i = 3'd4; c_dig_l = c_dig_x - 8'd60; end
         else                      begin c_dig_i = 3'd5; c_dig_l = c_dig_x - 8'd75; end
         case (p1_band)
+            BAND_FX:begin
+                c_col=p1_dx[3:0];c_row=p1_ly[3:0];c_ok=p1_dx<208;
+                c_color=TARGET_ONLY && hud_light_bg ? 24'h005a86:24'h63c5ff;
+                ui_text="VIEW            ";
+                ui_text[63-:8]=display_mode_char(display_mode,0);ui_text[55-:8]=display_mode_char(display_mode,1);ui_text[47-:8]=display_mode_char(display_mode,2);ui_text[39-:8]=display_mode_char(display_mode,3);ui_text[31-:8]=display_mode_char(display_mode,4);
+                c_char=TARGET_ONLY ? ui_text[127-p1_dx[7:4]*8-:8]:display_mode_char(display_mode,p1_dx[6:4]);
+                if(!TARGET_ONLY) c_ok=p1_dx<80;
+            end
+            BAND_BATCH: begin
+                case(p1_diag_row)
+                    1:begin c_batch_count=batch_counts_frame[23:12];c_batch_target=batch_targets_frame[23:12];c_batch_type=2;c_batch_overrun=batch_overrun_mask_frame[1];end
+                    2:begin c_batch_count=batch_counts_frame[35:24];c_batch_target=batch_targets_frame[35:24];c_batch_type=3;c_batch_overrun=batch_overrun_mask_frame[2];end
+                    3:begin c_batch_count=batch_counts_frame[47:36];c_batch_target=batch_targets_frame[47:36];c_batch_type=4;c_batch_overrun=batch_overrun_mask_frame[3];end
+                    default:begin c_batch_count=batch_counts_frame[11:0];c_batch_target=batch_targets_frame[11:0];c_batch_type=1;c_batch_overrun=batch_overrun_mask_frame[0];end
+                endcase
+                c_col=p1_dx[3:0];c_row=p1_ly[3:0];c_ok=p1_dx<240;
+                c_color=(batch_overrun_frame && c_batch_overrun) ? (hud_light_bg ? 24'hb71c1c:24'hff7b72) :
+                    (batch_done_frame ? (hud_light_bg ? 24'h00662f:24'h40ff80) :
+                    (c_batch_target==0 ? (hud_light_bg ? 24'h5c6670:24'h9bacbf) :
+                    (c_batch_count>=c_batch_target ? (hud_light_bg ? 24'h00662f:24'h40ff80) :
+                    (batch_filter_frame==c_batch_type ? (hud_light_bg ? 24'h805000:24'hfff200):
+                    (hud_light_bg ? 24'h18212b:24'he6edf5)))));
+                case(c_batch_type)
+                    1:c_batch_total=total_frame[11:0];2:c_batch_total=total_frame[23:12];
+                    3:c_batch_total=total_frame[35:24];4:c_batch_total=total_frame[47:36];
+                endcase
+                case(p1_dx[7:4])
+                    12:c_char={4'h3,c_batch_total[11:8]};
+                    13:c_char={4'h3,c_batch_total[7:4]};
+                    14:c_char={4'h3,c_batch_total[3:0]};
+                    0:begin case(c_batch_type) 1:c_char="S";2:c_char="W";3:c_char="H";default:c_char="S";endcase end
+                    1:begin case(c_batch_type) 1:c_char="C";2:c_char="A";3:c_char="E";default:c_char="Q";endcase end
+                    2:begin case(c_batch_type) 1:c_char="R";2:c_char="S";3:c_char="X";default:c_char="U";endcase end
+                    3:c_char=CHAR_COLON;
+                    4:c_char={4'h3,c_batch_count[11:8]};
+                    5:c_char={4'h3,c_batch_count[7:4]};
+                    6:c_char={4'h3,c_batch_count[3:0]};
+                    7:c_char=CHAR_SLASH;
+                    8:c_char={4'h3,c_batch_target[11:8]};
+                    9:c_char={4'h3,c_batch_target[7:4]};
+                    10:c_char={4'h3,c_batch_target[3:0]};
+                    default:c_char=8'h20;
+                endcase
+            end
             BAND_LATENCY: begin
                 c_char=latency_char(p1_dx[7:4]);c_col=p1_dx[3:0];c_row=p1_ly[3:0];
                 c_ok=1;c_color=24'hffffff;
             end
             BAND_COLOUR_DIAG: begin
-                if(WB_DIAGNOSTICS)
-                    c_char=p1_diag_row==0 ? colour_diagnostic_char(3'd0,p1_dx[7:4]):
-                        wb_diagnostic_char(p1_diag_row,p1_dx[7:4]);
-                else c_char=colour_diagnostic_char(p1_diag_row,p1_dx[7:4]);
-                c_col=p1_dx[3:0];c_row=p1_ly[3:0];c_ok=1;
-                c_color=24'hffffff;
+                c_col=p1_dx[3:0];c_row=p1_ly[3:0];c_ok=p1_dx<256;
+                c_color=24'he6edf5;
+                if(p1_is_menu) begin
+                    c_ok=c_ok && p1_ly<16;
+                    ui_item={menu_index_frame[3],3'd0}+p1_diag_row-1'b1;
+                    if(p1_diag_row==0) begin
+                        ui_text="CONTROLS    1/2 ";ui_text[31:24]=menu_index_frame[3] ? "2":"1";
+                        c_color=24'h63c5ff;
+                    end else if(p1_diag_row==9) begin ui_text="K1 UP  K2 DOWN  ";c_color=24'h9bacbf;end
+                    else if(p1_diag_row==10) begin ui_text="K3 -   K4 +/ACK ";c_color=24'h9bacbf;end
+                    else if(p1_diag_row>=1 && p1_diag_row<=8 && ui_item<=14) begin
+                        if(ui_item==menu_index_frame) c_color=24'hffffff;
+                        case(ui_item)
+                            0:begin ui_text=" VIEW           ";ui_text[55-:8]=display_mode_char(menu_preview_frame,0);ui_text[47-:8]=display_mode_char(menu_preview_frame,1);ui_text[39-:8]=display_mode_char(menu_preview_frame,2);ui_text[31-:8]=display_mode_char(menu_preview_frame,3);ui_text[23-:8]=display_mode_char(menu_preview_frame,4);end
+                            1:begin
+                                case(menu_motor_frame)
+                                    1:ui_text=" MOTOR   LOW 65%";
+                                    2:ui_text=" MOTOR   MID 80%";
+                                    3:ui_text=" MOTOR   HI 100%";
+                                    default:ui_text=" MOTOR   STOP   ";
+                                endcase
+                            end
+                            2:ui_text=menu_awb_frame ? " AWB     FREEZE ":" AWB     AUTO   ";
+                            3:ui_text=!menu_ae_auto_frame ? " AE      MAN    ":menu_ae_locked_frame ? " AE      LOCK   ":" AE      AUTO   ";
+                            4:begin ui_text=" EXP     0000   ";ui_text[55:24]={{4'h3,camera_display[27:24]},{4'h3,camera_display[23:20]},{4'h3,camera_display[19:16]},{4'h3,camera_display[15:12]}};end
+                            5:begin ui_text=" GAIN    000    ";ui_text[55:32]={{4'h3,camera_display[11:8]},{4'h3,camera_display[7:4]},{4'h3,camera_display[3:0]}};end
+                            6,7,8,9:begin
+                                case(ui_item) 6:begin ui_text=" SCR SET 000    ";c_batch_target=batch_targets_frame[11:0];end
+                                    7:begin ui_text=" WAS SET 000    ";c_batch_target=batch_targets_frame[23:12];end
+                                    8:begin ui_text=" HEX SET 000    ";c_batch_target=batch_targets_frame[35:24];end
+                                    9:begin ui_text=" SQU SET 000    ";c_batch_target=batch_targets_frame[47:36];end endcase
+                                ui_text[55:32]={{4'h3,c_batch_target[11:8]},{4'h3,c_batch_target[7:4]},{4'h3,c_batch_target[3:0]}};
+                            end
+                            10:ui_text=" NEW BATCH RESET";
+                            11:begin ui_text=" AE Y    152    ";ui_text[55:32]={{4'h3,ae_target_digits[11:8]},{4'h3,ae_target_digits[7:4]},{4'h3,ae_target_digits[3:0]}};end
+                            12:begin ui_text=" DETAIL  2      ";ui_text[55:48]=8'd48+enhance_frame[5:4];end
+                            13:begin ui_text=" NOISE   04     ";ui_text[55:48]=enhance_frame[3:0]>=10 ? "1":"0";ui_text[47:40]=8'd48+(enhance_frame[3:0]>=10 ? enhance_frame[3:0]-10:enhance_frame[3:0]);end
+                            14:ui_text=" ACK NG  CONFIRM";
+                        endcase
+                        if(ui_item==menu_index_frame) ui_text[127:120]=">";
+                    end
+                    c_char=ui_text[127-p1_dx[7:4]*8-:8];
+                end else if(PARTS_MODE && p1_diag_row==15) begin
+                    c_color=hud_light_bg ? 24'h18212b:24'he6edf5;
+                    ui_text=menu_motor_frame!=0 ? "BATCH: RUN      ":"BATCH: READY    ";
+                    if(batch_overrun_frame) begin ui_text="BATCH: NG STOP  ";c_color=hud_light_bg ? 24'hb71c1c:24'hff7b72;end
+                    else if(enhance_frame[6]) begin ui_text="BATCH:CLEAR VIEW";c_color=hud_light_bg ? 24'h805000:24'hfff200;end
+                    else if(batch_done_frame) begin ui_text="BATCH: COMPLETE ";c_color=hud_light_bg ? 24'h00662f:24'h72dca2;end
+                    c_char=ui_text[127-p1_dx[7:4]*8-:8];
+                end else if(FPS_DISPLAY && PARTS_MODE && p1_diag_row==14) begin
+                    ui_text="FPS     ---     ";
+                    if(fps_frame_valid) ui_text[63:40]={{4'h3,fps_frame[11:8]},{4'h3,fps_frame[7:4]},{4'h3,fps_frame[3:0]}};
+                    c_char=ui_text[127-p1_dx[7:4]*8-:8];c_color=hud_light_bg ? 24'h18212b:24'he6edf5;
+                end else if(PARTS_MODE && p1_diag_row==12) begin
+                    ui_text="PART OK/SET PASS";c_char=ui_text[127-p1_dx[7:4]*8-:8];c_color=hud_light_bg ? 24'h005a86:24'h9bc5e4;
+                end else begin
+                    c_char=WB_DIAGNOSTICS ? (p1_diag_row==0 ? colour_diagnostic_char(0,p1_dx[7:4]):wb_diagnostic_char(p1_diag_row[2:0],p1_dx[7:4])):
+                        colour_diagnostic_char(p1_diag_row[2:0],p1_dx[7:4]);
+                end
             end
             BAND_EXPOSURE,BAND_GAIN: begin
-                c_col=p1_dx[3:0];c_row=p1_ly[3:0];c_ok=p1_dx<128;
-                c_color=((p1_band==BAND_GAIN)==camera_display[28]) ? 24'hfff200 : 24'hffffff;
+                c_col=p1_dx[3:0];c_row=p1_ly[3:0];c_ok=p1_dx<208;
+                c_color=TARGET_ONLY && hud_light_bg ? 24'h18212b:24'he6edf5;
                 if(p1_band==BAND_EXPOSURE) begin
-                    case(p1_dx[6:4])
-                        0:c_char="E";1:c_char="X";2:c_char="P";3:c_char=":";
-                        4:c_char={4'h3,camera_display[27:24]};5:c_char={4'h3,camera_display[23:20]};
-                        6:c_char={4'h3,camera_display[19:16]};7:c_char={4'h3,camera_display[15:12]};
-                    endcase
+                    ui_text="EXP     0000    ";ui_text[63:32]={{4'h3,camera_display[27:24]},{4'h3,camera_display[23:20]},{4'h3,camera_display[19:16]},{4'h3,camera_display[15:12]}};
                 end else begin
-                    case(p1_dx[6:4])
-                        0:c_char="G";1:c_char="A";2:c_char="I";3:c_char="N";4:c_char=":";
-                        5:c_char={4'h3,camera_display[11:8]};6:c_char={4'h3,camera_display[7:4]};
-                        7:c_char={4'h3,camera_display[3:0]};
-                    endcase
+                    ui_text="GAIN    000     ";ui_text[63:40]={{4'h3,camera_display[11:8]},{4'h3,camera_display[7:4]},{4'h3,camera_display[3:0]}};
                 end
+                c_char=ui_text[127-p1_dx[7:4]*8-:8];
             end
             BAND_TARGET: begin
                 c_char=target_label_char(p1_target_shape,p1_target_colour,p1_dx[7:4]);
@@ -1103,7 +1474,7 @@ module hdmi_mixer #(
                     c_ok  = 1'b1;
                 end
             end
-            BAND_ST, BAND_MO, BAND_TY, BAND_CO, BAND_FX: begin
+            BAND_ST, BAND_MO, BAND_TY, BAND_CO: begin
                 if (p1_dx < 8'd80) begin
                     c_col = p1_dx[3:0];
                     c_row = p1_ly[3:0];
@@ -1163,11 +1534,7 @@ module hdmi_mixer #(
 
     //---- P3：字库行点阵寄存；Logo 索引 ERAM 同步读 ----
     wire [15:0] S_pf_row_bits;
-    osd_char_lib u_osd_char_lib(
-        .I_char     ( S_pf_char     ),
-        .I_row      ( S_pf_row      ),
-        .O_row_bits ( S_pf_row_bits )
-    );
+    osd_font_sync u_osd_char_lib(.I_clk(I_clk),.I_char(S_pf_char),.I_row(S_pf_row),.O_row_bits(S_pf_row_bits));
 
     (* ram_style = "bram" *) reg [9:0]  S_logo_idx_mem [0:16383];
     (* ram_style = "bram" *) reg [24:0] S_logo_pal_mem [0:1023];   // [24]=不透明
@@ -1181,7 +1548,7 @@ module hdmi_mixer #(
     reg [4:0]  p3_ovl;
     reg [3:0]  p3_col;
     reg        p3_ok, p3_logo_in;
-    reg [15:0] p3_bits;
+    wire [15:0] p3_bits=S_pf_row_bits;
     reg [9:0]  p3_logo_idx;
     always @(posedge I_clk) begin
         p3_logo_idx <= S_logo_idx_mem[p2_lg_addr];
@@ -1190,12 +1557,11 @@ module hdmi_mixer #(
         if (!I_rst_n) begin
             {p3_de, p3_hs, p3_vs} <= 3'd0;
             p3_base <= 24'd0; p3_color <= 24'd0; p3_ovl <= 5'd0; p3_col <= 4'd0;
-            p3_ok <= 1'b0; p3_logo_in <= 1'b0; p3_bits <= 16'd0;
+            p3_ok <= 1'b0; p3_logo_in <= 1'b0;
         end else begin
             p3_de <= p2_de; p3_hs <= p2_hs; p3_vs <= p2_vs;
             p3_base <= p2_base; p3_color <= S_osd_color; p3_ovl <= p2_ovl;
             p3_col <= p2_col; p3_ok <= p2_ok; p3_logo_in <= p2_logo_in;
-            p3_bits <= S_pf_row_bits;
         end
     end
 

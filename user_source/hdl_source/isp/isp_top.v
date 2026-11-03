@@ -20,7 +20,10 @@ module isp_top #(
     input 			O_tready		,
     input 			I_bin_en		,
     input [1:0] 		I_morph_mode	,
-    output reg [2:0] O_display_mode, // 0 RGB,1 GRAY,2 SOBEL,3 EDGE,4 BIN,5 ERODE,6 DILAT,7 BIN
+    input [1:0] I_enhance_strength,
+    input [3:0] I_enhance_noise,
+    input I_enhance_compare,
+    output reg [2:0] O_display_mode, // 0 RGB,1 GRAY,2 SOBEL,3 EDGE,4 BIN,5 ERODE,6 DILAT,7 ENHANCE
     output [15:0] 		O_proj_span	,  // Valid ring outer diameter in pixels
     output [15:0] 		O_proj_hole	,  // Valid ring hole diameter in pixels
     output 			O_proj_upd		,
@@ -68,6 +71,8 @@ module isp_top #(
     output [127:0] O_color_diag,
     output [127:0] O_wb_diag,
     output O_wb_diag_upd,
+    output [7:0] O_ae_luma,
+    output O_ae_valid,O_ae_upd,
     output [15:0] O_latency_bcd,
     output O_latency_valid,O_latency_upd
 );
@@ -201,6 +206,14 @@ awb #(
     .I_cal_reset(color_cal_reset),
     .O_reference(O_color_reference),.O_reference_upd(O_color_reference_upd),
     .O_diagnostics(O_wb_diag),.O_diagnostics_upd(O_wb_diag_upd)
+);
+
+// Parallel observer only: never inserts a cycle into RGB/marker/DDR paths.
+camera_exposure_meter u_ae_meter(
+    .I_clk(axi4s_video_aclk),.I_rst_n(I_rst_n),
+    .I_tdata(m_aixs_tdata_96),.I_tvalid(m_aixs_tvalid),
+    .I_tuser(m_aixs_tuser),.I_tlast(m_aixs_tlast),
+    .O_luma(O_ae_luma),.O_valid(O_ae_valid),.O_upd(O_ae_upd)
 );
 
 
@@ -394,14 +407,29 @@ wire [95:0] morph_display_data = {morph_dc[MORPH_ITER][23:0],
 wire [95:0] effects_data;
 wire effects_valid,effects_sof,effects_last;
 wire effects_frame_start;
-wire next_frame_has_row_delay=VIDEO_MODES && !bin_en_sync[1] && morph_mode_sync2[1];
+reg [5:0] enhance_control_meta,enhance_control_sync;
+reg [1:0] enhance_compare_sync;
+always @(posedge axi4s_video_aclk or negedge I_rst_n) begin
+    if(!I_rst_n) enhance_compare_sync<=0;
+    else enhance_compare_sync<={enhance_compare_sync[0],I_enhance_compare};
+end
+always @(posedge axi4s_video_aclk or negedge I_rst_n) begin
+    if(!I_rst_n) begin enhance_control_meta<={2'd2,4'd4};enhance_control_sync<={2'd2,4'd4};end
+    else begin enhance_control_meta<={I_enhance_strength,I_enhance_noise};enhance_control_sync<=enhance_control_meta;end
+end
+wire enhance_mode=VIDEO_MODES && bin_en_r && morph_mode_r==2'b11;
+wire next_frame_enhance=VIDEO_MODES && bin_en_sync[1] && morph_mode_sync2==2'b11;
+wire next_frame_has_row_delay=VIDEO_MODES &&
+    ((!bin_en_sync[1] && morph_mode_sync2[1]) || next_frame_enhance);
 assign O_frame_start=(m_aixs_tuser && !next_frame_has_row_delay) ||
-                     (effects_frame_start && !bin_en_r);
+                     (effects_frame_start && (!bin_en_r || enhance_mode));
 generate if(VIDEO_MODES) begin : g_video_modes
     img_video_modes #(.DEBUG_CAPTURE(DEBUG_CAPTURE)) u_video_modes (
         .I_clk(axi4s_video_aclk),.I_rst_n(I_rst_n),
         .I_tdata(awb_geometry_data),.I_tvalid(awb_O_tvalid),
-        .I_tuser(awb_sof),.I_tlast(awb_eol),.I_mode(morph_mode_r),
+        .I_tuser(awb_sof),.I_tlast(awb_eol),.I_mode(morph_mode_r),.I_enhance(enhance_mode),
+        .I_enhance_strength(enhance_control_sync[5:4]),.I_enhance_noise(enhance_control_sync[3:0]),
+        .I_enhance_compare(enhance_compare_sync[1]),
         .O_tdata(effects_data),.O_tvalid(effects_valid),
         .O_tuser(effects_sof),.O_tlast(effects_last),.O_frame_start(effects_frame_start));
 end else begin : g_original_preview
@@ -413,12 +441,15 @@ wire [95:0] effects_display_data={effects_data[23:0],effects_data[47:24],
                                  effects_data[71:48],effects_data[95:72]};
 // RGB keeps the physically verified one-clock AWB preview path. Do not
 // force the original image through a neighbourhood algorithm or row replay.
-wire use_effects=VIDEO_MODES && morph_mode_r!=0;
-wire [95:0] mux_base_data = bin_en_r ? morph_display_data :
+wire use_effects=VIDEO_MODES && ((!bin_en_r && morph_mode_r!=0) || enhance_mode);
+wire [95:0] mux_base_data = enhance_mode ? effects_display_data :
+                           bin_en_r ? morph_display_data :
                            use_effects ? effects_display_data : awb_tdata_d1;
-wire        mux_tvalid = bin_en_r ? morph_vc[MORPH_ITER] :
+wire        mux_tvalid = enhance_mode ? effects_valid :
+                        bin_en_r ? morph_vc[MORPH_ITER] :
                         use_effects ? effects_valid : awb_tvalid_d1;
-wire        mux_tuser = bin_en_r ? morph_uc[MORPH_ITER] :
+wire        mux_tuser = enhance_mode ? effects_sof :
+                       bin_en_r ? morph_uc[MORPH_ITER] :
                        use_effects ? effects_sof : awb_tuser_d1;
 always @(posedge axi4s_video_aclk or negedge I_rst_n) begin
     if(!I_rst_n) O_display_mode<=0;
@@ -612,4 +643,74 @@ end endgenerate
 //    .O_tdata(awb_O_tdata_128)
 //);
 	
+endmodule
+
+// 75th-percentile, 16-bin pre-AWB luminance. One pixel every 8x8 cell,
+// excluding a 1/16 border, prevents a small central part from owning AE.
+// Dark/clipped pixels remain measurements; malformed/incomplete frames do not.
+module camera_exposure_meter #(
+    parameter integer IMG_WIDTH=1280,IMG_HEIGHT=720
+)(input wire I_clk,I_rst_n,input wire [95:0] I_tdata,
+  input wire I_tvalid,I_tuser,I_tlast,
+  output reg [7:0] O_luma,output reg O_valid,O_upd);
+    localparam integer XLO=IMG_WIDTH/16,XHI=IMG_WIDTH-IMG_WIDTH/16;
+    localparam integer YLO=IMG_HEIGHT/16,YHI=IMG_HEIGHT-IMG_HEIGHT/16;
+    localparam integer NX=(XHI+7)/8-(XLO+7)/8;
+    localparam integer NY=(YHI+7)/8-(YLO+7)/8;
+    localparam integer EXPECTED=NX*NY;
+    reg [10:0] x,y;
+    reg seen,bad,complete,user_d;
+    reg [15:0] histogram[0:15];
+    reg [15:0] count,rank,prefix;
+    reg scanning,snapshot_valid,chosen_valid;
+    reg [3:0] bin_index,chosen;
+    wire sof=I_tuser && !user_d;
+    wire [10:0] cx=sof ? 11'd0:x;
+    wire [10:0] cy=sof ? 11'd0:y;
+    // Pixel 0 is the high 24-bit lane in the canonical RGB packet.
+    wire [9:0] luma_sum={2'd0,I_tdata[95:88]}+
+        {1'd0,I_tdata[87:80],1'b0}+{2'd0,I_tdata[79:72]};
+    wire sample=I_tvalid && seen && !bad && cx>=XLO && cx<XHI &&
+        cy>=YLO && cy<YHI && cx[2:0]==0 && cy[2:0]==0;
+    wire [16:0] next_prefix={1'b0,prefix}+histogram[bin_index];
+    wire hit=!chosen_valid && next_prefix>=rank;
+    integer i;
+    always @(posedge I_clk or negedge I_rst_n) begin
+        if(!I_rst_n) begin
+            x<=0;y<=0;seen<=0;bad<=0;complete<=0;user_d<=0;count<=0;
+            rank<=0;prefix<=0;scanning<=0;snapshot_valid<=0;
+            chosen_valid<=0;bin_index<=0;chosen<=0;
+            O_luma<=0;O_valid<=0;O_upd<=0;
+            for(i=0;i<16;i=i+1) histogram[i]<=0;
+        end else begin
+            user_d<=I_tuser;
+            if(sof) begin
+                snapshot_valid<=seen && !bad && complete && count==EXPECTED && EXPECTED>0;
+                rank<=count-(count>>2);prefix<=0;chosen_valid<=0;
+                scanning<=1;bin_index<=0;count<=0;
+                x<=0;y<=0;seen<=1;bad<=0;complete<=0;
+            end else if(scanning) begin
+                histogram[bin_index]<=0;
+                prefix<=next_prefix[15:0];
+                if(hit) begin chosen<=bin_index;chosen_valid<=1;end
+                if(bin_index==15) begin
+                    scanning<=0;O_valid<=snapshot_valid && rank!=0 && (chosen_valid || hit);
+                    if(snapshot_valid && rank!=0)
+                        O_luma<=hit ? {bin_index,4'h8}:{chosen,4'h8};
+                    O_upd<=~O_upd;
+                end else bin_index<=bin_index+1'b1;
+            end
+            if(I_tvalid && (seen || sof)) begin
+                if(cx>=IMG_WIDTH || cy>=IMG_HEIGHT || I_tlast!=(cx==IMG_WIDTH-4)) bad<=1;
+                if(cx==IMG_WIDTH-4) begin
+                    x<=0;y<=cy+1'b1;
+                    if(cy==IMG_HEIGHT-1) complete<=1;
+                end else x<=cx+11'd4;
+            end
+            if(sample && !sof) begin
+                if(scanning) bad<=1;
+                else begin histogram[luma_sum[9:6]]<=histogram[luma_sum[9:6]]+1'b1;count<=count+1'b1;end
+            end
+        end
+    end
 endmodule

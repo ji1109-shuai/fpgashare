@@ -1,7 +1,8 @@
 `timescale 1ns/1ps
 // Measured 578/579-clock inter-line idle, but only 771 clocks before
 // the next aligned SOF. The real FIFO reset starts from a 55-clock-early SOF.
-module video_tail_check #(parameter H=8, MODE=3, FRAMES=3, TAIL_STALL=0, USE_ISP=0);
+module video_tail_check #(parameter H=8, MODE=3, FRAMES=3, TAIL_STALL=0, USE_ISP=0, COMPARE=0, COLOUR=0);
+    `include "../industrial_tone_reference.vh"
     reg cam=0,ddr=0,rst=0,v=0,sof=0,eol=0,early=0;
     reg [95:0] rgb=0;
     wire [95:0] out;
@@ -19,6 +20,11 @@ module video_tail_check #(parameter H=8, MODE=3, FRAMES=3, TAIL_STALL=0, USE_ISP
     reg busy=0;
     integer stall=0;
     wire [127:0] packed_data,wd;
+    wire [11:0] measured_fps;
+    wire fps_update;
+    video_frame_rate #(.WORDS_PER_FRAME(H*240)) frame_meter(
+        .camera_clk(cam),.system_clk(ddr),.rst_n(rst),
+        .frame_start(ps),.word_valid(pv),.fps_bcd(measured_fps),.fps_update(fps_update));
     wire [24:0] addr;
     integer f,y,b,p,gap,i,j,output_frame=-1,beats=0,pack_phase=0;
     integer offered=0,written=0,df,dw,reset_overlap=0;
@@ -28,7 +34,7 @@ module video_tail_check #(parameter H=8, MODE=3, FRAMES=3, TAIL_STALL=0, USE_ISP
     always #7.5 ddr=~ddr;
     img_video_modes #(.LINES_PER_FRAME(H),.DEBUG_CAPTURE(1)) fx(
         .I_clk(cam),.I_rst_n(rst),.I_tdata(rgb),.I_tvalid(v),.I_tuser(sof),
-        .I_tlast(eol),.I_mode(MODE[1:0]),.O_tdata(out),.O_tvalid(ov),.O_tuser(os),.O_tlast(ol)
+        .I_tlast(eol),.I_mode(MODE[1:0]),.I_enhance(MODE==7),.I_enhance_strength(2'd2),.I_enhance_noise(4'd4),.I_enhance_compare(COMPARE!=0),.O_tdata(out),.O_tvalid(ov),.O_tuser(os),.O_tlast(ol)
 `ifndef PRE_TAIL_FIX
         ,.O_frame_start(effect_start)
 `endif
@@ -39,7 +45,8 @@ module video_tail_check #(parameter H=8, MODE=3, FRAMES=3, TAIL_STALL=0, USE_ISP
         isp_top #(.VIDEO_MODES(1),.DEBUG_CAPTURE(1)) dut(
             .axi4s_video_aclk(cam),.I_rst_n(rst),.I_tlast(1'b0),.I_tuser(1'b0),
             .I_tdata(40'd0),.I_tvalid(1'b0),.I_tdest(10'd0),.O_tready(1'b1),
-            .I_bin_en(1'b0),.I_morph_mode(MODE[1:0]),.I_awb_freeze(1'b1),
+            .I_bin_en(MODE>=4),.I_morph_mode(MODE[1:0]),.I_enhance_strength(2'd2),.I_enhance_noise(4'd4),.I_awb_freeze(1'b1),
+            .I_enhance_compare(COMPARE!=0),
             .O_tdata(packed_data),.O_tvalid(pv),.O_tuser(ps),.O_frame_start(isp_boundary));
         initial begin
             force dut.awb_O_tdata=awb_rgb;force dut.awb_O_tvalid=v;
@@ -64,14 +71,39 @@ module video_tail_check #(parameter H=8, MODE=3, FRAMES=3, TAIL_STALL=0, USE_ISP
         .O_ddr_user_wr_en(wr),.O_ddr_user_addr(addr),.O_ddr_user_wr_data(wd),.I_ddr_user_ready(!busy));
     function integer lum;
         input integer x,y,frame;
-        begin lum=(x*11+y*19+frame*43)%256;end
+        reg [23:0] c;
+        begin c=source_pixel(x,y,frame);lum=(int'(c[23:16])+2*int'(c[15:8])+int'(c[7:0]))/4;end
+    endfunction
+    function [23:0] source_pixel(input integer x,y,frame);
+        integer v,r,g,b;
+        begin
+            v=(x*11+y*19+frame*43)%256;r=v;g=v;b=v;
+            if(COLOUR) begin r=(v+x*3+29)%256;g=(v+y*7+53)%256;b=(v+frame*37+97)%256;end
+            source_pixel={r[7:0],g[7:0],b[7:0]};
+        end
     endfunction
     function [23:0] ref_pixel;
         input integer x,y,frame;
-        integer dx,dy,g;
+        integer dx,dy,g,base,detail,delta,ix,iy,r,b,minimum,maximum;
+        reg [23:0] c;
         begin
             g=0;
-            if(MODE<2) g=lum(x,y,frame);
+            if(MODE==7) begin
+                g=lum(x,y,frame);base=0;delta=0;
+                if(x>0 && x<1279 && y>0 && y<H-1 && g>16 && g<240) begin
+                    for(iy=-1;iy<=1;iy=iy+1) for(ix=-1;ix<=1;ix=ix+1)
+                        base=base+lum(x+ix,y+iy,frame)*(ix==0 ? 2:1)*(iy==0 ? 2:1);
+                    detail=g-base/16;
+                    if((detail<0 ? -detail:detail)>4) begin
+                        delta=(detail<0 ? -detail:detail)-4;
+                        if(delta>24) delta=24;if(detail<0) delta=-delta;
+                    end
+                end
+                c=source_pixel(x,y,frame);r=c[23:16];g=c[15:8];b=c[7:0];
+                minimum=r<g ? r:g;if(b<minimum) minimum=b;maximum=r>g ? r:g;if(b>maximum) maximum=b;
+                if(delta < -minimum) delta=-minimum;if(delta>255-maximum) delta=255-maximum;
+                r=r+delta;g=g+delta;b=b+delta;
+            end else if(MODE<2) g=lum(x,y,frame);
             else if(x>0 && x<1279 && y>0 && y<H-1) begin
                 dx=lum(x+1,y-1,frame)+2*lum(x+1,y,frame)+lum(x+1,y+1,frame)
                   -lum(x-1,y-1,frame)-2*lum(x-1,y,frame)-lum(x-1,y+1,frame);
@@ -81,7 +113,7 @@ module video_tail_check #(parameter H=8, MODE=3, FRAMES=3, TAIL_STALL=0, USE_ISP
                 if(g>255) g=255;
             end
             if(MODE==3) g=g>=16 ? 255:0;
-            ref_pixel={g[7:0],g[7:0],g[7:0]};
+            ref_pixel=MODE==7 ? ((COMPARE && x<640) ? source_pixel(x,y,frame):tone_reference({r[7:0],g[7:0],b[7:0]},2)):{g[7:0],g[7:0],g[7:0]};
         end
     endfunction
     // Build DDR expectations from the mathematical reference, never DUT data.
@@ -127,7 +159,7 @@ module video_tail_check #(parameter H=8, MODE=3, FRAMES=3, TAIL_STALL=0, USE_ISP
             for(y=0;y<H;y=y+1) begin
                 for(b=0;b<320;b=b+1) begin
                     @(negedge cam);v=1;sof=y==0 && b==0;eol=b==319;
-                    for(p=0;p<4;p=p+1) rgb[p*24+:24]=24'h010101*lum(b*4+p,y,f);
+                    for(p=0;p<4;p=p+1) rgb[p*24+:24]=source_pixel(b*4+p,y,f);
                 end
                 @(negedge cam);v=0;sof=0;eol=0;
                 if(y<H-1) begin gap=578+(y%2);repeat(gap-1) @(negedge cam);end
@@ -142,10 +174,12 @@ module video_tail_check #(parameter H=8, MODE=3, FRAMES=3, TAIL_STALL=0, USE_ISP
         for(f=0;f<FRAMES;f=f+1) frame();
         repeat(3000) @(negedge cam);
         if(reset_overlap!=0) $fatal(1,"camera payload during actual FIFO reset, words=%0d",reset_overlap);
+        if(frame_meter.frame_count!==12'h003)
+            $fatal(1,"FPS did not observe three complete packed ISP frames: %h",frame_meter.frame_count);
         if(written!=FRAMES*H*240 || offered!=FRAMES*H*240 || beats!=H*320) $fatal(1,"missing complete frame DDR=%0d ref=%0d beats=%0d",written,offered,beats);
         if(fx.g_debug.DBG_VM_ERROR!==0 || vi.g_debug.DBG_CAM_ERROR!==0 || vi.g_debug.DBG_DDR_ERROR!==0)
             $fatal(1,"sticky errors VM=%h CAM=%h DDR=%h",fx.g_debug.DBG_VM_ERROR,vi.g_debug.DBG_CAM_ERROR,vi.g_debug.DBG_DDR_ERROR);
-        $display("ALL PASS: tight blank mode%0d H%0d, %0d frames, independent pixels/DDR addresses, peak=%0d",MODE,H,FRAMES,vi.U_w128_d512_fifo.peak);$finish;
+        $display("ALL PASS: tight blank mode%0d H%0d, %0d frames, compare=%0d colour=%0d, independent pixels/DDR addresses, peak=%0d",MODE,H,FRAMES,COMPARE,COLOUR,vi.U_w128_d512_fifo.peak);$finish;
     end
     initial begin #30000000;$fatal(1,"tail timeout");end
 endmodule
@@ -155,3 +189,6 @@ module tb_video_tail_720p; video_tail_check #(.H(720)) test(); endmodule
 module tb_video_tail_stall; video_tail_check #(.TAIL_STALL(1)) test(); endmodule
 module tb_video_tail_isp; video_tail_check #(.H(720),.USE_ISP(1),.TAIL_STALL(1)) test(); endmodule
 module tb_video_tail_isp_sobel; video_tail_check #(.H(720),.MODE(2),.USE_ISP(1),.TAIL_STALL(1)) test(); endmodule
+
+module tb_video_tail_isp_enhance; video_tail_check #(.H(720),.MODE(7),.USE_ISP(1),.TAIL_STALL(1)) test(); endmodule
+module tb_video_tail_isp_compare; video_tail_check #(.H(720),.MODE(7),.USE_ISP(1),.TAIL_STALL(1),.COMPARE(1),.COLOUR(1)) test(); endmodule

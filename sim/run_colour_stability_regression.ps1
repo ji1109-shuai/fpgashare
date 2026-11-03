@@ -1,4 +1,4 @@
-param([string]$BuildName='colour_stability_validation',
+﻿param([string]$BuildName='colour_stability_validation',
     [string]$VivadoRoot='D:/AMDDesignTools/2025.2/Vivado',
     [string[]]$Tops=@('tb_awb_auto_reference','tb_bayer_neutral','tb_auto_wb_isp','tb_auto_wb_overlay','tb_colour_ratios','tb_wb_reference','tb_colour_diagnostic_osd','tb_colour_diagnostic_raster','tb_colour_stream_error','tb_awb','tb_wb_invalid','tb_wb_probe','tb_wb_probe_overlay','tb_multi_overlay','tb_wb_probe_isp'))
 $ErrorActionPreference='Stop'
@@ -19,6 +19,7 @@ Push-Location $build
 try {
     $rtl='../../user_source/hdl_source'
     Copy-Item "$rtl/logo_idx.hex","$rtl/logo_pal.hex" -Destination . -Force
+    Copy-Item (Join-Path $PSScriptRoot "../user_source/hdl_source/industrial_font16.hex") -Destination . -Force
     & "$vivado/bin/unwrapped/win64.o/xvlog.exe" -sv "$rtl/uiisp_beta/ae_set.v" `
         "$rtl/uics500_cfg/uicfgcs500.v" "$rtl/uics500_cfg/uics500reg.v" `
         "$rtl/uics500_cfg/uics500regAE.v" "$rtl/uics500_cfg/SC500GainTbl.v" `

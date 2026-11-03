@@ -13,7 +13,7 @@ module video_modes_ddr_check #(parameter H=8,MODE=2,BLANK=160);
     always #4.444 cam=~cam;
     always #7.5 ddr=~ddr;
     img_video_modes #(.LINES_PER_FRAME(H)) fx(.I_clk(cam),.I_rst_n(rst),
-        .I_tdata(rgb),.I_tvalid(v),.I_tuser(sof),.I_tlast(eol),.I_mode(MODE[1:0]),
+        .I_tdata(rgb),.I_tvalid(v),.I_tuser(sof),.I_tlast(eol),.I_mode(MODE[1:0]),.I_enhance(1'b0),
         .O_tdata(out),.O_tvalid(ov),.O_tuser(os),.O_tlast(ol));
     data_96bit_to_128bit pack(.I_clk(cam),.I_rst_n(rst),
         .I_96b_frame_start(os),.I_96b_valid(ov),.I_96b_data({out[23:0],out[47:24],out[71:48],out[95:72]}),

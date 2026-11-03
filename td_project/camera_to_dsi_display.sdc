@@ -16,3 +16,11 @@ set_clock_groups -asynchronous \
     -group [get_clocks {sys_clk_50m pll_clk_100m pll_clk_24m}] \
     -group [get_clocks {HDMI_PIXEL_CLK HDMI_SERIAL_CLK}] \
     -group [get_clocks {u_ph1p35_324_ddr_wrapper/u_ddr2/ddr_clk u_ph1p35_324_ddr_wrapper/u_ddr2/usr_clk}]
+
+# The screen-menu controls are generated in the 50 MHz system domain and enter
+# the 24 MHz camera-control domain only through explicit two-flop synchronizers
+# in ae_set.  The PLL clocks have a fractional phase relationship, so treating
+# these synchronizer inputs as ordinary synchronous paths creates a spurious
+# 1.538 ns setup requirement.  Cut only this CDC direction; all paths inside
+# each clock domain remain timed normally.
+set_false_path -from [get_clocks {sys_clk_50m}] -to [get_clocks {pll_clk_24m}]

@@ -1,8 +1,138 @@
+<!-- BATCH_BUZZER_STATUS_BEGIN -->
+## 2026-11-03 批次错误蜂鸣已交付（未上板）
+
+- 唯一工程仍为 `D:/fpgashare/fpgashare (4)/fpgashare`。216项生产输入仅design_top_wrapper.v和pin.adc增加蜂鸣端口/观察实例/同文件模块与C12约束；原菜单/电机/计数/FPS模块及顶层其余逻辑逐字未变，65项根工程保护未变，AE/AWB/增强/UI/Logo保留。
+- NG触发2kHz、200ms响/800ms停的重复短鸣；自动恢复或ACK解除NG后停音。正常STOP/DONE/清场/复位静音，NG中手动STOP不消除报警；蜂鸣支路没有反向控制权限。普通移除三次fresh确认和硬故障ACK规则不变。
+- 8/8定向功能通过：720518周期波形检查、62项电机/恢复/报警联动断言，以及计数/菜单/跟踪/FPS/开机AE回归。完整CSI/视频本轮未重跑，既有未变逻辑证据保留。
+- `batch_buzzer_r1_build_20261103_085821.json`于09:43:58完成，原SDC/TimingMedium下最终Setup+0.102ns/Hold+0.020ns，TNS/违例0、Routing DRC通过、无实现ERROR/FATAL；STA94.68%，Slice20255/21216、LUT619780、ERAM80、DSP22。六条普通告警文本差异已审查，无新增critical warning；既有告警/时序覆盖和余量限制保留。
+- 只读路由DB核实蜂鸣PAD为C12、OUT、PULLUP，doq[0]/opad连线存在；日志保留，未回写数据库。新bit `release_archive/batch_buzzer_20261103/camera_to_dsi_display_batch_buzzer.bit`，1789539字节，SHA256 `D3AF844DBED3F82F84FC64D927FD7EA594D2E5E762605F56ABC2794FDEB7BDBA`。
+- 09:49:21已同步默认syn_1/phy_1；上轮motor_fps默认bit哈希07D459...完整备份于`syn_1_before_batch_buzzer_20261103_094921` / `phy_1_before_batch_buzzer_20261103_094921`。最终三处bit/DB/报告/源清单/ROM核对见verification.json。
+- 说明docs/BATCH_BUZZER_20261103.md；核验tools/verification/verify_batch_buzzer.py；同步tools/promote_batch_buzzer.ps1；证据sim/batch_buzzer_20261103_validation。未烧板、未提交推送，实际声响/音量和现场计数仍待上板验证。
+
+<!-- BATCH_BUZZER_STATUS_END -->
+
+<!-- MOTOR_FPS_STATUS_BEGIN -->
+## 2026-11-03 电机自动恢复、三档PWM与FPS已交付（未上板）
+
+- 唯一工程仍为 D:/fpgashare/fpgashare (4)/fpgashare。本轮216项生产输入仅design_top_wrapper.v与hdmi_mixer.v变化，根工程保护哈希不变。AE152±8/曝光优先、AWB、工业增强/SW1对照、透明统一字号UI及安路logo保留。
+- 修复NG连到菜单完成信号清速度、旧计数器只允许ACK两个阻碍。普通错件/超额停车保留档位，连续3次fresh完整目标发布均未观察到错误类别后恢复；未确认但observed仍阻止恢复，不以时钟等待恢复。quota=0已确认类别在上游即NG。硬故障/身份歧义仍需ACK；手动STOP取消恢复，DONE/清场清速度，超额修剪只影响accepted count，PASS总数保留。
+- MOTOR改STOP/LOW65%/MID80%/HI100%，10kHz、IN1 PWM/IN2 LOW，100%持续高。百分比为PWM占空比，不是实测线速度。左上角y200新增FPS，16×16/20px行距/透明自适应字色；按ISP输出172800个128位字完整帧、50MHz一秒窗口统计，HDMI SOF锁存；无完整帧窗口归000，上电首窗口前---。并非HDMI刷新率或检测更新率。
+- 17/17定向顶层功能通过：61项电机链路断言、450完整帧及异步/窗口/停摄归零、FPS跨域和SOF保持、UI双读延迟各10帧、真实ISP增强与对照各3个720p帧及DDR末行通过，FPS各收到3帧。旧50%电机及ACK-only counter被新断言拒绝。初期无debug优化仿真出现内部信号可见性敏感，失败记录保留、编译器根因未完全确定；最终O0+debug全套及优化+debug电机/跟踪均通过，未改生产RTL掩盖失败。未变AE/CSI/ISP/增强证据按hash复用，本轮未重跑完整CSI。
+- TD motor_fps_r1_build_20261102_234331.json于00:13:15完成，继承官方TimingMedium策略。原SDC下Setup +0.102ns/Hold +0.020ns，TNS/违例0，Routing DRC通过，无实现ERROR/FATAL；STA94.70%，Slice20261/21216、LUT6 19800、ERAM80、DSP22。critical warning集合与旧UI版相同；六条普通告警差异已审查，含端口行号、占用估计和PLL反馈布线级联变化，前后路由DB的analyze_clock -detail记录保留。既有告警及未覆盖时序限制仍在，不声称零告警或现场通过。
+- 交付release_archive/motor_fps_20261102/camera_to_dsi_display_motor_fps.bit，1789539字节，SHA256 07D459B95457A11C4EA6422F9A455E2A283EF494A9B09699B2580D6910A35E7E。00:18:23已同步默认syn_1/phy_1，旧UI版完整保留在syn_1_before_motor_fps_20261103_001823 / phy_1_before_motor_fps_20261103_001823。三处bit、综合DB/报告、源清单和ROM一致，defaultRun.verified=true，issues=[]。
+- 说明docs/MOTOR_FPS_20261102.md；核验tools/verification/verify_motor_fps.py；同步tools/promote_motor_fps.ps1；证据sim/motor_resume_20261102_validation。未烧板、未提交推送；现场更高速识别率及实际移除恢复仍待上板验证。
+
+<!-- MOTOR_FPS_STATUS_END -->
+
+<!-- UI_OVERLAY_STATUS_BEGIN -->
+## 2026-11-02 左上角 UI 漏项已补齐并交付（以本记录为准，未上板）
+
+- 唯一工程仍为 D:/fpgashare/fpgashare (4)/fpgashare。用户指出上一轮只完成增强而遗漏左上角 UI，已明确承认并补齐：左侧整块底板、边框、标题底色及文字行黑底全部删除；删除 AE5/Y 与 TARGET/容差两行调试文字；16×16 字体、20 像素行距、同列对齐；批次状态上移至 y180，保留 NG/ACK、清场、完成、RUN/READY，NG 优先显示。
+- 本轮216项生产输入仅 hdmi_mixer.v 变化；曝光/AWB/电机/计数/ISP/视觉增强算法及约束逐字保留，根工程保护哈希不变。左侧原面板不再整块屏蔽确认目标框/标签，右菜单与安路图标保留。亮背景深色字、暗背景浅色字，状态保留红/绿。
+- 本轮7/7回归通过，UI双读延迟各10帧720p，每种延迟检查704菜单字符、44379字形像素、608421透明像素和4363状态像素。旧版负对照在原边框x168/y12被新断言正确拒绝。初次合成背景出现X，测试平台背景函数改automatic且显式传场景后双延迟全部通过；原失败日志保留。旧30项AE/CSI/ISP/增强证据按未变输入及日志哈希复用，未声称本轮重跑完整CSI。
+- 最终 ui_overlay_r3_build_20261102_214046.json，22:03:04完成，复用r1相同输入综合DB，TD官方TimingMedium物理策略。原SDC下Setup +0.107ns、Hold +0.020ns，TNS/违例端点0、Routing DRC通过，无实现ERROR/FATAL，STA94.71%；Slice20018/21216、LUT6 19581、ERAM80/108、DSP22/40。原告警保留，已有时钟混合负载告警时钟引脚397→384单独审查，数据/控制负载仍1；未忽略其他新告警。r1 Setup -1.449ns不交付，r2工具崩溃不交付，记录保留。
+- 新交付 release_archive/ui_overlay_20261102/camera_to_dsi_display_ui_overlay.bit，1789539字节，SHA256 724DEB436F016145E36E8FEB7C02875A2A853BCF11366B69A03DF8BE14FABDE8。22:05:20已同步默认syn_1/phy_1，原默认visual版AD5A84...完整保留在syn_1_before_ui_overlay_20261102_220519及phy_1_before_ui_overlay_20261102_220519。三处bit、DB/报告、源清单和ROM核验一致，defaultRun.verified=true，issues=[]。
+- 说明 docs/UI_OVERLAY_20261102.md；核验 tools/verification/verify_ui_overlay.py；证据 sim/ui_overlay_20261102_validation。本轮替代上一轮未含UI修复的visual.bit；未烧板、未提交推送。
+
+<!-- UI_OVERLAY_STATUS_END -->
+
+<!-- VISUAL_UPGRADE_STATUS_BEGIN -->
+## 2026-11-02 整机视觉升级已交付（未上板）
+
+- 用户再次确认：唯一目标为 `D:/fpgashare/fpgashare (4)/fpgashare`，只升级视觉处理。此前误在 `D:/fpgashare` 根工程生成的单独视觉 bit 不含本整机功能，不得当作整机交付；已向用户明确纠正。
+- 本轮四份生产文件：`img_video_modes.v`、`isp/isp_top.v`、`design_top_wrapper.v`、`hdmi_mixer.v`。216 项修改前输入核对仅这四份变化，顶层菜单/电机/批次模块逐字不变，根工程保护哈希未变。AE5、AWB、识别、约束、引脚和 ROM 不改。
+- 原 ENHN 非锐化之后增加分段亮度 S 曲线和 1.25 倍色差；DETAIL 0/1/2/3 控制旁路/轻/默认/强，NOISE 原菜单保留。SW1=1 左原图/右增强，VIEW=SPLIT；SW1=0 全图 ENHN。只 ENHN 新增一拍，其他模式原延迟保留。
+- 37/37项功能验收通过：核心/菜单/电机/计数、八种720p模式、三帧DDR末行和彩色分屏、875520个照片RTL像素、实际I²C及完整CSI闭环。CSI共67帧，第55帧AEY152/EXP1282/GAIN112锁定，降光至24后再检查12帧无新写入。UI首次RD2出现一次未知值，原因未确定；加入诊断后独立复跑和最终全套均通过，生产RTL未因该现象改变，原失败日志保留。
+- TD `visual_r1_build_20261102_191216.json` 于19:12:17～19:42:55完成。原SDC下最终Setup +0.004ns/Hold +0.020ns，TNS/违例端点0，Routing DRC通过，无ERROR/FATAL；STA94.70%，Slice19993/21216、LUT6 19505/21216、ERAM80/108、DSP22/40。Setup余量仅4ps；原critical warning集合与旧整机相同，未声称无告警或上板通过。
+- 交付 `release_archive/visual_20261102/camera_to_dsi_display_visual.bit`，SHA256 `AD5A84BC4AEEDE8F9164F38C1981E5120D8F3A99C7CE4C14E7848145A10620F4`。20:11:42已同步本工程默认syn_1/phy_1；原默认实际hash为99F2BF01E68CDF8222AC781BAFF0CEF9297A8B0696DAF64B5304F9E1AD6A1251，已完整保留在 `syn_1_before_visual_20261102_201142` / `phy_1_before_visual_20261102_201142`，不得把旧文档E882...当成覆盖前默认文件的实测身份。最终三处bit、DB/报告、源清单和ROM核验见verification.json。
+- 本轮说明 `docs/VISUAL_ENHANCE_20261102.md`；核验 `tools/verification/verify_visual.py`；证据 `sim/visual_upgrade_20261102_validation`。用户已明确授权完整构建，不要因历史“TD由用户运行”说明中断。
+
+<!-- VISUAL_UPGRADE_STATUS_END -->
+
+<!-- INDUSTRIAL_UPGRADE_STATUS_BEGIN -->
+## 2026-11-02 工业升级已交付（以本记录为准，未上板）
+
+- 指定工程`D:/fpgashare/fpgashare (4)/fpgashare`完成：AE152±8/连续16有效包LOCK、EXP优先；模式7 ENHN工业细节增强（DETAIL/NOISE可调）；统一16×16 UI；身份/方向越线计数、两次漏检保护、PASS审计、显式ACK和新批清空保护。
+- 最终仅交付`industrial_r8_build_20261102_012449.json`。新bit：`D:/fpgashare/fpgashare (4)/fpgashare/release_archive/industrial_20261102/camera_to_dsi_display_industrial.bit`，1,789,539字节，SHA256 `E88296C5880293844A739C23341C41C6F6C14D80DFD6976533EF0EE9074D55FD`。r1～r7取消/失败中间记录均不交付。
+- 51/51定向功能通过；真实CSI第55帧AEY152、EXP1282/GAIN112锁定，降光到24后再12帧无写入。增强像素18,432次比对、完整720p/DDR末行及UI双读延迟渲染通过；覆盖范围和复用证据边界见说明。
+- 原SDC下最终Setup +0.060ns/Hold +0.020ns，TNS/违例端点0，Routing DRC通过，无ERROR/FATAL；STA94.58%，既有接口/调试探针/SDC列表提示及I2C局部时钟告警仍在。Slice19031/21216、LUT6 18404、ERAM80/108、DSP22/40；66项工程输入/ROM哈希一致。余量小，不当作上板通过。
+- 01:48:58已同步本工程默认`syn_1/phy_1`；三处bit、数据库/报告、有效源清单和字体/Logo ROM一致，`defaultRun.verified=true`。旧默认备份为`syn_1_before_industrial_20261102_014858`及`phy_1_before_industrial_20261102_014858`，未删除。
+- 资料：`docs/INDUSTRIAL_UPGRADE_20261102.md`，验证`sim/industrial_upgrade_20261102_validation/verification.json`，归档`release_archive/industrial_20261102`。上电ENHN/AE5 AUTO、TARGET152±8，电机0；SW4菜单，K1/K2选择，K3/K4调整。
+- 显示增强不改变上游AE/AWB/分类，不宣称识别率提高；历史kind10普通照明宽阴影/孔洞失败仍存在，修改前同点已复现。根/(3)等保护生产源码未改，未烧板、未提交推送。
+
+<!-- INDUSTRIAL_UPGRADE_STATUS_END -->
+
 # 项目交接与当前对话摘要
 
-更新日期：2026-10-24。本文整理项目的关键结论、用户要求及未完成事项，不是聊天记录全文。
+更新日期：2026-11-01。本文整理项目的关键结论、用户要求及未完成事项，不是聊天记录全文。
+
+## 最新交付：AE4曝光优先与可调目标（2026-11-01，23:11）
+
+- 用户明确不要只动GAIN。原AE3过亮分支确实优先降GAIN，已标为superseded_unreleased，不交付。AE4双向EXP优先：过亮先减EXP，EXP=3后才降GAIN；过暗先增EXP，EXP=2244后才升GAIN。默认目标128/区间112～144，AE Y菜单64～192/步长8，连续16个完整有效包才LOCK，锁后停止自动调节。AUTO/LOCK改目标自动清锁重收敛，显式MAN保留。
+- 35/35项定向功能回归通过。实际I2C解码普通亮场EXP2244→1122→561→280→297→315、GAIN112保持；短曝光暗启动、上下曝光边界的GAIN补偿、运动/NACK/目标范围/锁后改目标均过。原GAIN优先源码在EXP2244/GAIN96被新断言正确拒绝，避免再次只看请求数或显示值。
+- 完整CSI→RAW10→流转换/校正→720p ISP→测光→AE→实际I2C解码/N+2闭环37帧；第25帧测光136、EXP1122/GAIN112锁定，锁后降光至测光24再12帧无新增写入。每帧原始/校正均230400拍；真实顶层连接、图标/显示双延迟、AWB、Sobel/EDGE/DDR、多目标/计数回归通过。功能仿真不代表现场效果。
+- TD `ae_exp_r1_build_20261101_223900.json`于2026-11-01T22:39:00.8669284+08:00～2026-11-01T23:11:29.3000102+08:00完成；原SDC下Setup +0.105ns/Hold +0.020ns、TNS/违例端点0、STA94.78%，Routing DRC完成无实现ERROR/FATAL，既有告警/例外保留。Slice19996、LUT6 19491、ERAM76、DSP20；62项输入hash及源清单一致。
+- 新bit `release_archive/ae_exposure_20261101/camera_to_dsi_display_ae_exposure.bit`，1,789,539字节，SHA256 `9E83A5F8B26B977F482D88628103E56DA452D2443FF436E4D9582B31309BB869`。2026-11-01T23:11:52.1363606+08:00同步默认syn_1/phy_1，三处bit及默认综合DB/报告一致，phy父run为syn_1。旧默认目录以`*_1_before_ae_exp_20261101_231151`保留；旧bit仍为B9FD6378...。
+- 当前屏幕标识AE4；说明`docs/AE_EXPOSURE_20261101.md`，证据`sim/ae_exp_20261101_validation/verification.json`为verified_no_board_test，defaultRun.verified=true、issues=[]。本轮累计仅改指定副本的ae_set/顶层/hdmi_mixer三份生产文件，识别/AWB/像素链/约束和电机/计数算法不改。未上板/提交推送；不引用无证据的曝光780结论，帧差/速度预测本轮未接入。
+
+## 历史候选：AE3亮度可调（已被AE4取代，未交付）
+
+- 用户新反馈是“已经收敛，但收敛太快且明显过亮”，要求降低或开放目标；不再将当前问题当作未启动MAN。上一轮启动/CSI修复保留。
+- 新AE3默认目标128、范围112～144；菜单末项`AE Y`可设64～192、步长8。锁定延长到16个完整有效测光包；AUTO/LOCK中改目标自动清锁并重新收敛，显式MAN不被覆盖。目标复位恢复128。
+- 只改ae_set、顶层及hdmi_mixer，生产源已冻结于TD `ae_target_r1_build_20261101_215900.json`。32/33项功能顶层通过，仅完整CSI闭环仍运行；原始bit已生成，当前默认phy_1仍为AE2，最终通过后再同步，不能提前交付旧bit。
+- TD于21:59:00～22:21:31完成，原SDC下Setup +0.101ns/Hold +0.020ns、TNS/违例端点0、STA94.77%，Routing DRC完成无实现ERROR/FATAL，既有告警/例外保留；Slice19903、LUT6 19489、ERAM76、DSP20，62项输入及源清单一致。原始run bit SHA256 `D4173A7F103C04DAEB97F3EE65B834B6806C1B43E3D86DB9B9D4549CC2CCF37D`，尚未交付及同步默认入口。
+- 说明`docs/AE_TARGET_20261101.md`，验证工具`tools/verification/verify_ae_target.py`，安全同步工具`tools/promote_ae_target.ps1`。本轮不改识别/AWB/像素链/约束，未上板、未提交推送。
+
+## 最新交付：现场MAN与CSI链路修正（2026-11-01，21:41）
+
+- 用户反馈“AE显示MAN，EXP/GAIN不变化”，不能用历史仿真代替现场事实。检查时默认bit仍为19:55:47、SHA256 `F3600698449176AB27E3ED4FE8F7072866A488D92A2B5306863D1F05C163E37A`，与20:52交付版不同；本轮已在全部验证后同步默认`syn_1/phy_1`，旧目录保留为`*_1_before_ae_field_20261101_214108`。不能据旧默认文件断定用户实际烧录了哪个文件。
+- 旧菜单上电低电平触发MAN已做功能负对照；新增消抖释放后才接收相机键，顶层同时屏蔽未解锁原始键。`image_correction.v`按空闲计数反复计行也已复现：600拍间隔下第241行丢失，完整CSI每帧230400拍被截为57600拍；改为真实标记一拍流水。
+- 新增`AE2`版本、实际测光Y/V、配置完成I、写入数W、连续达标数S。176～216内连续8个有效观测才LOCK，锁后S:8/8并停止自动写入。
+- 本轮仅改顶层、image_correction、ae_set、hdmi_mixer四个生产文件，其余58项工程输入及识别/AWB/SDC/引脚/电机/计数保持一致。28/28项定向功能顶层及3个旧源码负对照核验完成。完整CSI闭环47帧：GAIN112→96→80→64→48，第28～35帧测光200、第35帧LOCK；锁后降低合成光照，测光24，继续12帧无新增写入，EXP2244/GAIN48保持。每帧原始/校正均230400拍。
+- 最终TD `ae_field_r2_build_20261101_211446.json`于21:14:46～21:38:58完成；r1已取消不交付。原SDC下Setup +0.106ns/Hold +0.020ns、TNS/违例端点均0，STA94.76%；Routing DRC完成，无实现ERROR/FATAL，既有告警/例外保留。Slice19927/21216、LUT6 19519/21216、ERAM76/108、DSP20/40；62项输入hash和实际源清单一致。
+- 新bit `release_archive/ae_field_boot_20261101/camera_to_dsi_display_ae_field_boot.bit`，1,789,539字节，SHA256 `B9FD637836B9181146C22AA0193AB575DBAC9F990BD353170956EC6F684A0CBE`。21:41:08同步默认run，原始run、默认phy_1和归档三处bit哈希相同，默认综合数据库及最终报告也核验一致；默认phy父run已设回syn_1。
+- 说明`docs/AE_FIELD_BOOT_20261101.md`；证据`sim/ae_field_20261101_validation/verification.json`为`verified_no_board_test`，`defaultRun.verified=true`、`issues=[]`；同步记录`default_run_promotion.json`，归档有上板README。尚未上板、未提交推送；帧差/速度预测本轮未接入，不能声称现场无需手调、颜色或带速已通过。
+
+## 历史记录：重新修正开机自动曝光链路（2026-11-01，20:52交付）
+
+- 用户反馈上一版仍需手调，已重新按真实像素→测光→CDC→控制器→增益表/寄存器→I2C核查，不能继续沿用默认MAN、停带/无目标门控、中心绿色均值和亮度小于16禁止调整的旧假设。
+- 当前上电AUTO；`isp_top.v` 并联AWB前75百分位测光，校验完整帧/行尾；黑帧有效。取消电机/目标门控，连续8个有效包收敛后LOCK并停止写入，显式MAN→AUTO或复位重启；直接手动编辑转MAN。
+- 按SC500CS手册修正最小曝光码3、N+2图像生效等待；远暗曝光增量限制约50%，修复最小增益下翻倍/减半振荡。配置器逐寄存器锁存NACK并重试，不以未应答写入冒充完成。
+- 生产仅修改 `ae_set.v`、`design_top_wrapper.v`、`isp_top.v`、`uicfgcs500.v`、`hdmi_mixer.v` 五文件。识别、AWB、视频模式、SDC、引脚及其余项目输入保持一致；电机/计数模块逐字不变。
+- 26项定向功能顶层已通过，修前配置器NACK反例按预期失败。完整720p RAW/ISP→AE→实际I2C→N+2图像反馈整机测试也通过：全程无按键，总47帧、5组寄存器序列，锁定后改变光照再检查12帧无写入；为合成光学模型，未实测相机效果。
+- 最终TD为 `ae_chain_boot_r1_build_20261101_202117.json`，20:21:18—20:52:03完成；Setup +0.102ns/Hold +0.020ns，TNS/违例端点均0，STA94.76%，Routing DRC完成无实现错误。Slice19879/21216、LUT6 19503/21216、ERAM76/108、DSP20/40；62项输入hash与有效源清单一致。原有告警/例外保留，实际使用本工程原SDC，未改约束隐藏问题。20:17试构建发现步长振荡后主动停止，不交付该run。
+- 新交付 `release_archive/ae_chain_boot_20261101/camera_to_dsi_display_ae_chain_boot.bit`，1,789,539字节，SHA256 `CB1BB42993BD0786A849E7D6BAE8D1DE35880040012EA5E85E18150DB4E752EB`；原run与归档副本哈希一致，前一版bit不能冒充本轮结果。
+- 当前说明 `docs/AE_CHAIN_BOOT_20261101.md`，证据汇总 `sim/ae_chain_20261101_validation/verification.json`，结果为 `verified_no_board_test`。尚未上板、未提交/推送；帧差/速度预测未接入，现场是否无需手调仍待实测。
+
+## 历史记录：前一版一次性自动曝光锁定（2026-11-01）
+
+- 用户本轮明确指定 `D:/fpgashare/fpgashare (4)`，实际工程为其唯一子目录 `fpgashare`；不要改错到根工程或 `(3)`。入口 `.al` 已核对为本副本。
+- 修改 `uiisp_beta/ae_set.v`、`design_top_wrapper.v`、`hdmi_mixer.v`：AUTO停带收敛，I2C写完丢弃2包，连续8包在原176～216死区内则 `AE:LOCK`。锁定后光照、目标、启停不再自动修改曝光；MAN→AUTO显式重启；上电仍MAN。未锁定时非零电机档位显示HOLD，暂停调整但不混同会话选择。
+- 18项定向功能顶层通过，含I2C/边界参数、菜单双读延迟、既有菜单/超额计数恢复、背光多目标/延迟、HSV/形状流水线、8种720p模式、Sobel/EDGE各3帧DDR连续性、自动AWB与完整ISP。旧测试夹具的MAN默认值、消抖/长短按时序已校正；生产三段菜单/计数/电机控制模块与本轮前逐字相同。
+- 历史普通照明宽阴影多目标用例仍在frame22失败（4候选、0确认、期望4框），日志保留；识别源码本轮未改。新增背光专用测试不覆盖或掩盖该失败。
+- 速度限制已复现：当前关联器64像素/识别批次可继承历史，65像素连续移动会失去3批次确认。帧差可作为未来运动证据，仍需速度预测关联、稳定ID计数及曝光拖影/吞吐量核查；本轮未接入新帧差或预测算法，不能宣称实测带速提高。
+- 19:55完成独立TD构建：Setup +0.111ns/Hold +0.020ns，TNS/违例端点0，STA94.76%；Slice19483/21216、LUT6 19008/21216、ERAM76/108、DSP20/40，Routing DRC完成无错误，既有告警/例外保留。62项输入hash及run源清单与本副本当前工程一致。
+- 交付 `release_archive/ae_once_lock_20261101/camera_to_dsi_display_ae_once_lock.bit`，SHA256 `E9F5B9AB973342E3CF95AEF5D7488A46CBC7073CE887FC63721373AC2360FD56`。详见 `docs/AE_ONCE_AND_MOTION_20261101.md`、`sim/ae_once_20261101_validation/verification.json`；原始run `phy_ae_once_20261101_193113`。原v3 bit不覆盖，旧操作说明已标为历史。
+- 新版未上板，未提交/推送Git；现场颜色、实际最高带速及任意照明/背景均无新增验证结论。自动白平衡继续保留，安路图标与已确认目标框/标签保留，未更改像素延迟、帧头帧尾、DDR或约束。
 
 ## 最新现场确认与下一步（2026-10-24）
+
+- 2026-10-31 四类批次计数 UI 改为同时显示 `SCR/WAS/HEX/SQU` 的“当前值/目标值”，达到目标的行变绿、未启用目标变灰、当前按键选择行变黄；六角螺母与四方螺母不再合并。卡通化预览由每通道2 bit升级为每通道3 bit（8级RGB），Sobel黑色轮廓门限由24提高到48，以保留更多金属层次并抑制传送带细纹。中心行压缩缓存为每像素9 bit，理论11520 bit，不增加全帧缓存；实际ERAM/LUT/Slice与时序仍以用户TD完整构建为准。
+- 2026-10-31 新增低资源卡通化预览，复用原 Sobel 梯度流水，把此前重复的 `SW1~SW3=111` BIN 直通模式改为 `CART`：中心行仅缓存量化色彩，不增加全帧缓存，也不改变识别、分类、计数或原 RGB/GRAY/SOBEL/EDGE/ERODE/DILATE 模式。Vivado 2022.2 对生产模块和720p模式测试源码完成 `xvlog` 静态分析，`xelab` 完成静态展开后仍被本机既有 `XSIM 43-3409` 生成C文件错误阻断，不能声称行为仿真通过。
+- 2026-10-31 三类别配额版首次完整布局在 `opt_route` 长时间反复绕线：综合阶段 Slice 估算 21610/21216（101.86%），布局中约 20391/21216（96.11%），拥塞 top1=100%；中间 setup WNS 曾恶化到 -8.195 ns，Phase2 优化后仍约 -0.303 ns，不能按“进度50%假死”处理，也不能用 false path 隐藏。已停止扩张原4×4目标关联网络，并把批次计数器改为低资源的“计数线上各类别占用数正增量”方案：每次结果发布分别统计 SCR/WAS/NUT 数量，只累计相对上一包的正增量，目标槽换序不重计且同包最多4件仍可同时计数；运行时目标范围收紧为0~99。限制是同类别零件需保留基本间距，若恰好一个同类离线、另一个同类在同一结果包进线，占用数不变会漏计一次。Vivado 2022.2 `xvlog` 静态分析通过；XSim 仍被既有 `XSIM 43-3409` 生成C文件失败阻断。用户需停止旧 run、从 Synthesis 完整重建并以最终资源、SWNS/HWNS判断是否下载。
+- 2026-10-31 在已确认可用的多目标识别+传送带版本上增加三类别独立配额计数：画面按左→右运动，以 x=640 为计数线，最多4个确认框在同一次结果发布中分别计数；用类别、纵向重叠、中心运动方向和一对一占用匹配，避免目标槽换序或相邻异类导致重复/漏计。SCR螺钉、WAS垫片、NUT螺母（六角与四方合并）始终并行累计，各自目标可设0~999，0表示不参与完成条件，默认仅SCR=10。SW4=1 时 KEY1/KEY2调整当前类别目标；KEY3不依赖SW4，短按清零三个实际计数并解除完成锁存、长按约1秒循环选择SCR/WAS/NUT；KEY4仍独立控制传送带。切换显示类别不清除其他计数。所有非零配额都达到或超过后才锁存完成并强制电机档位/PWM清零；左上显示当前所选类别的 `CNT:当前/目标 类别`，运行绿色、完成红色。新增 `tb_batch_counter`，Vivado 2022.2 `xvlog` 静态分析通过；本机 XSim 仍被既有 `XSIM 43-3409` 阻断，未声称行为仿真通过。用户需从 Synthesis 重建并检查资源与最终 SWNS/HWNS；若两个实物被前端合成同一个框，计数端无法把它们还原成两个。
+- 2026-10-31 已用用户现场确认可用的 `conveyor_key4` 完整替换此前多键 `pwm_test`：旧 `pwm_test.v`、实例、中间信号及引用均已移除。最初把 `l298n_motor_control.v` 作为新增 TD 源码，但已打开的 TD 会话保存工程时覆盖了外部写入的 `.al` 条目，导致 `HDL-8007 black box`；现把交接包模块嵌入既有 `design_top_wrapper.v` 末尾，不再依赖新增源码条目。低占空比现场带不动传送带，最终按用户要求把四个运行档集中在50/53/56/60%，KEY4短按松开循环调档、长按约1秒停止；V1输出10 kHz PWM、V2固定低，控制不依赖SW4。相机/识别链路未改，旧电机调试LED固定低。Vivado 2022.2 `xvlog` 静态分析通过；用户仍需从Synthesis完整重建并检查整机资源及时序后下载。
+- 2026-10-31 将电机 PWM 合入后的首次整机 TD 构建在 `opt_route` 长时间迭代，布局资源为 LUT6 19379/21216、Slice 19923/21216、ERAM 75、DSP 20，但工具估算局部 Slice 利用率达到95%~97%、top1拥塞100%；Phase 4/5/6完整重布线后的SWNS依次为 -4.082/-4.584/-4.869 ns，主要关键路径位于112.511 MHz的 `img_tire` 同时钟域形态学通路，不是应以 false path 隐藏的异步跨域路径。该构建已不建议继续或下载。
+- 同日按最终“传送带下置背光板”场景做时序恢复：从生产 `img_proj.v` 撤除普通照明专用的4-bit粗单元亮度RAM、5×5强弱种子扩张、五点孔洞亮度恢复及暗孔回退，恢复此前背光场景的两遍3×3闭运算与真实封闭孔洞判定。保留已确认的稀疏黄铜螺钉规则、多目标、动态框、自动白平衡和电机PWM。Vivado 2022.2 `xvlog` 对零件测试集源码、`img_proj`、`hdmi_mixer`、`pwm_test`、顶层静态分析通过；行为仿真仍被本机既有 `XSIM 43-3409` 生成C文件失败阻断。用户必须停止旧 `phy_1`，从 Synthesis 重新构建并以新资源和最终SWNS/HWNS决定是否下载，不能复用旧Physical结果。
+- 2026-10-30 已把用户独立上板验证的 `pwm_test_lab` 合入识别工程：新增 `pwm_test.v`、V1/V2同路约9.77 kHz PWM、KEY3/KEY4及四个调试LED约束。SW4作为按键所有权选择：0时KEY1/KEY2仍控制相机EXP/GAIN，1时KEY1~KEY4控制PWM；设定的占空比在切回SW4=0后保持。主系统复位期间V1/V2强制低。导入RTL去除注释/空白后与独立工程逐字符一致，独立工程既有XSim日志为ALL PASS，合并顶层与PWM模块通过Vivado 2022.2 `xvlog`静态分析。独立PWM综合占138 LUT6/144 Slice/100 REG；按最后一次动态框报告简单相加估计合并后约19885 LUT6、20484 Slice（96.55%，余732），但这不是合并综合结果。最后一次动态框构建本身SWNS=-0.298 ns，必须由用户从Synthesis重新构建并检查新资源、SWNS/HWNS后再下载；不能以独立PWM时序或静态分析代替整机时序。
+- 2026-10-28 用户确认修正执行阶段后的稀疏黄铜螺钉版本可用。该次成功 TD 报告为 LUT6 19497/21216（91.90%，余1719）、Slice 20023/21216（94.38%，余1193）、ERAM 75/108、DSP 20/40；最终 SWNS=0.006 ns、HWNS=0.020 ns，摄像头关键时钟 112.511 MHz，时序余量极小。随后为传送带动态展示新增 HDMI 显示域框跟踪：识别结果和分类规则不变，同一形状且位移不超过96像素时，每个显示帧四条边最多前进8像素；新目标、形状变化、大跳变直接吸附，目标消失立即撤框。四个目标复用一套插值通路，在帧头后4个像素时钟依次更新，生产顶层仅在 `PARTS_MODE` 开启。首次 TD 构建完成但 LUT6=19747、Slice=20340，最终 SWNS=-0.298 ns（120个建立时间违例）、HWNS=0.020 ns；最差路径仍在 `img_tire` 的112.511 MHz形态学通路，说明新增资源加剧全局拥塞，生成的 bit 不应下载。为回收布局空间，已关闭完成黄铜采样任务的显示端 `COLOR_DIAGNOSTICS` 临时面板；这不改变上游颜色投票或分类，保留安路图标、EXP/GAIN、标签、延迟和动态框。新增 `tb_box_tracking`，Vivado 2022.2 `xvlog` 静态分析通过；XSim仍因生成C文件编译失败未执行行为仿真。资源及时序须以关闭诊断后的下一次完整 TD 构建为准。
+- 2026-10-28 根据下置背光现场诊断，第一轮 `S=0270/Y=0079/K=02A9` 后将稀疏黄铜规则限制在已确认螺钉；第二轮两个螺母已分别稳定为 BLACK/SILVER，但螺钉为 `R=0083/S=038A/Y=0031/K=0187, WHY=MIXED`。据此将螺钉分支调整为：黄铜票至少32且占有效颜色票至少1/32；因绿色参考补偿会把部分暖反光推入红区，使用 `R+Y` 暖色支持约束银/黑票，同时仍要求 `4Y>=R`。第三次现场诊断约为 `R=008C/S=024E/Y=0071/K=01E8`，数学上已满足该边界却仍为 MIXED；定位到螺钉专用规则错误地在 `PART_TRACE` 产生当前形状之前执行。现已将稀疏黄铜覆盖移动到 `PUBLISH`，确保使用当前目标的 `screw_ok`，并补充“非螺钉后立即出现稀疏黄铜螺钉”的时序对照。普通螺母、垫圈及通用25%黄铜门限不变；银/黑螺钉对照保护保留。Vivado 2022.2 `xvlog` 静态分析通过；XSim 仍在生成C文件编译阶段失败，未完成行为仿真和上板验证，不代表现场颜色已经通过。
+- 2026-10-27 最终场景改为白色织纹输送带且取消可调背光板。用户反馈 2026-10-25 普通照明版仍不能稳定识别。已核对当次 bit 晚于源码且最终时序通过（SWNS 0.100 ns、HWNS 0.020 ns），所以优先按场景不匹配处理：皮带织纹、接缝、侧边与运动模糊不满足“平滑白纸+软阴影”假设。当前 Slice 已用 94.73%，不采用整帧背景缓存；下一候选为 SW4 控制的 160×90 粗网格空带学习/冻结、固定检测门和输送方向跟踪。实施前需采集同一机位的空带 RGB/BIN/EDGE、银色螺母静止 RGB/BIN、最低速运动 RGB，以及 EXP/GAIN/DET 和皮带速度。机械与算法方案见 `docs/CONVEYOR_DEPLOYMENT_20261027.md`。
+- 同日首张输送带实测：单个大六角件无确认框，EXP=2244、GAIN=112、WB=AUTO、DET=16.3 ms；颜色诊断约为 R=0000、S=0034、Y=0000、K=03A5、N=0408、WHY:OK。尺寸和处理速度不是当前瓶颈，候选及颜色统计已运行，但当前照明把金属约90%的有效单元判成黑色，且内孔与主体同为深灰。优先判断孔洞/外形 `class_ok` 失败；需补同一摆位 BIN 与 EDGE 画面，不能直接取消所有孔洞约束。
+- 用户要求直接修改后，已增加六角/四方螺母的受约束暗孔回退：必须是黑色占优但保留至少16个、占面积至少1/32的中性反光单元，且无红/黄铜票，同时外轮廓谐波成立；实测 S=0x34、N=0x408 满足证据。垫圈孔条件不放宽，纯黑实心六角形不接受。新增测试覆盖纯黑实心六角拒绝及带中性反光、孔被完全填死的六角螺母恢复；不把颜色强行改成银色。
+- 上述源码和测试已通过 Vivado 2022.2 `xvlog` 静态分析。当前 Windows 会话中 XSim 的 MinGW 报“无效的系统 DLL 重定位”，`xelab` 在生成 C 编译阶段失败，且未改动的小型形状顶层同样失败，所以不能声称完整功能仿真通过；未运行 TD 构建。重启 Windows 后可复跑 `tb_parts`、`tb_parts_multi_no_calibration`、`tb_parts_ambient_shadows` 和 `tb_parts_solid_rejection`。
+
+- 2026-10-24 根据黄铜螺钉“大面积暗影、只有窄暖色反光、形状稳定但颜色为 UNKN”的新照片复核：白背板整体已接近中性，现有自动白平衡继续保留，不用全局偏黄补偿。颜色链路改为在每个8×8单元内保留达到25%、至少8像素且相对红色2:1的黄铜证据；整件黄铜门限由有效颜色单元的40%调整为25%，红色、银色、黑色规则不放宽。新增暗黄铜/稀疏暖反光黑件对照用例。HSV 534组、完整零件55帧、校准兼容及21帧多目标无校准回归通过；未做TD物理时序或上板验证。详见 `docs/BRASS_SHADOW_VOTING_20261024.md`。
 
 - 2026-10-24 用户要求提交并上传本次延迟修改用于协作。提交前核验9份源码SHA256与延迟仿真记录完全一致，8个测试日志全部通过；仅更正颜色诊断文档中REF/CL说明，相关RTL保持不变。README机械链接、机械资料及未跟踪的历史实验资料保留在工作区，不混入本次功能提交。远程上传结果以实际Git推送及远端提交核对为准。
 
@@ -173,6 +303,29 @@
 - `sim/run_colour_stability_regression.ps1`、`run_video_modes_regression.ps1`、`run_parts_regression.ps1` 及它们引用的测试源码。
 
 总索引见 `docs/README.md`；按源文件路径和 SHA256 记录的迁移清单见 `docs/migration_manifest.json`。未整体迁入旧 Git 历史、所有临时照片/波形、旧源码快照和软件安装包；这些仍只存在旧目录或原聊天附件中。关键现场现象已整理在本文，后续新照片应另存入本仓库的现场记录目录，不依赖临时附件路径。文档中的历史绝对路径只是来源记录，当前工作应使用仓库内相对路径。
+
+## 2026-10-25 普通白纸/无背光板识别优化（仅功能仿真）
+
+老师要求取消背光板，在普通白纸和正常照明下识别。现场图显示宽软阴影会被全局暗阈值并入零件，并把垫圈/螺母孔洞填死；结论是主因不在白平衡。
+
+`user_source/hdl_source/img_proj.v` 已加入两级前景掩膜：8×8 单元的深黑/暖色/硬局部边缘作为强种子，全局阈值只作弱前景；弱前景仅能在强种子两个粗单元内补齐，之后再执行闭运算。每个粗单元另存 4 bit 亮度，对候选中心和四个环带点做稀疏对比，用于恢复阴影压暗的孔洞并拒绝均匀实心银色圆。
+
+新增 `tb_parts_ambient_shadows` 与 `tb_parts_solid_rejection`，并加入 `sim/run_parts_regression.ps1`。最终 XSim 2022.2 结果：环境阴影 5 帧通过、实心反例 6 帧通过、`tb_parts` 70 帧通过、`tb_parts_multi_no_calibration` 26 帧通过。设计和边界见 `docs/NORMAL_LIGHT_SHADOW_SEGMENTATION_20261025.md`。
+
+本轮未运行 TD 综合、布局布线或生成 bit。新逻辑增加粗单元亮度 RAM 和一次有界形态学扫描，上板前必须由用户重新构建并检查资源与全部时序；功能仿真通过不能替代物理时序或真实光照验证。
+
+首次用户 TD 构建在布局 25% 报 `PHY-9011`：`img_tire` 被综合成 35,800 LUT / 18,593 REG。已定位为 `morph_scratch` 两个独立写分支导致 14,400 bit RAM 展开，现已改成互斥单写口模板；关键阴影/实心反例复跑通过。后续必须从 Synthesis 重新运行，不能只重试 Physical；新资源报告仍需用户确认。
+
+## 2026-10-27 白色织纹输送带策略试验（已撤销）
+
+用户曾确认把亮度调到最高仍无法框选，因此试验过“SW4空带学习+粗网格背景差分”。首次TD构建ERAM=82/108，SWNS=-0.033 ns；现场效果仍不理想。小组随后决定把背光板安装在传送带下方，恢复对高对比暗色轮廓最稳定的判定规则。本背景学习试验已从生产RTL、ISP接线和回归列表全部撤销，SW4不再承担背景学习功能。
+
+- 当前恢复的前端为全局亮度阈值形成弱前景，深黑、暖色或硬局部边缘形成强种子，随后执行有界强弱连接、闭运算、连通域、孔洞与形状判断。
+- 保留2026-10-25正常照明版已有的多目标、颜色投票、稀疏孔洞对比和受约束暗孔六角/四方回退；没有回退Sobel、DDR连续性、自动白平衡和OSD。
+- 背景RAM、`I_bg_learn`、SW4接线、背景测试及针对失败构建的两处时序流水试验均已移除，静态编译通过。
+- 用户需从Synthesis重新运行TD；预计ERAM回到背景试验前约75个，最终仍以新报告为准。
+
+完整说明见 `docs/CONVEYOR_DEPLOYMENT_20261027.md`。
 
 ## 合作约定建议
 

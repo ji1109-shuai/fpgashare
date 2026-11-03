@@ -1,5 +1,5 @@
 `timescale 1ns/1ps
-module tb_parts_multi #(parameter CALIBRATION=1,LATENCY_TEST=0);
+module tb_parts_multi #(parameter CALIBRATION=1,LATENCY_TEST=0,AMBIENT_ONLY=0,SOLID_ONLY=0,BACKLIT_ONLY=0);
  localparam W=640,H=448;
  reg clk=0,rst=0,valid=0,user=0,last=0;
  reg [95:0] bin=0,rgb=0;
@@ -9,7 +9,8 @@ module tb_parts_multi #(parameter CALIBRATION=1,LATENCY_TEST=0);
  reg previous_upd=0,previous_latency_upd=0;
  integer owner[0:W*H-1];integer kind[0:4],ox[0:4],oy[0:4];
  reg [23:0] colours[0:4];
- integer x,y,k,j,cx,cy,angle=0,radius=64,damage=0,cycles,frames=0,active=4;
+ integer x,y,k,j,q,cx,cy,angle=0,radius=64,damage=0,cycles,frames=0,active=4;
+ integer ambient=0,paper,shade,shadow_dist,bound_margin;
  integer expected_shape[0:4],expected_colour[0:4],hits[0:4],n,centre;
  reg change_context_mid_batch=0;
  reg old_upd,no_board=0;reg ready=CALIBRATION;reg [7:0] epoch=0;
@@ -91,8 +92,23 @@ module tb_parts_multi #(parameter CALIBRATION=1,LATENCY_TEST=0);
    for(x=0;x<W;x=x+4) begin
     @(negedge clk);valid=1;user=x==0 && y==0;last=x==W-4;
     for(k=0;k<4;k=k+1) begin
-     rgb[k*24+:24]=no_board || x+k<16 || x+k>=W-16 || y<16 || y>=H-16 ? 24'h080808:
-       owner[y*W+x+k]!=0 ? colours[owner[y*W+x+k]-1]:24'he8e8e8;
+     if(no_board) rgb[k*24+:24]=24'h080808;
+     else if(owner[y*W+x+k]!=0) rgb[k*24+:24]=colours[owner[y*W+x+k]-1];
+     else if(ambient) begin
+      // Ordinary white paper: mild texture/gradient plus broad soft shadows
+      // displaced from every object. The shadow is deliberately below the
+      // weak global threshold but has no hard 8x8-cell edge of its own.
+      paper=220-((x+k)>>6)+(((x+k)+y)%7)-3;shade=0;
+      for(q=0;q<active;q=q+1) begin
+       shadow_dist=((x+k)>(ox[q]+24) ? (x+k)-(ox[q]+24):(ox[q]+24)-(x+k))+
+                   (y>(oy[q]+16) ? y-(oy[q]+16):(oy[q]+16)-y);
+       if(shadow_dist<radius*2 && (radius*2-shadow_dist)/2>shade)
+        shade=(radius*2-shadow_dist)/2;
+      end
+      paper=paper-shade;
+      if(paper<0) paper=0;else if(paper>255) paper=255;
+      rgb[k*24+:24]={8'(paper),8'(paper),8'(paper)};
+     end else rgb[k*24+:24]=x+k<16 || x+k>=W-16 || y<16 || y>=H-16 ? 24'h080808:24'he8e8e8;
     end
    end
    @(negedge clk);valid=0;user=0;last=0;repeat(2) @(negedge clk);
@@ -124,11 +140,15 @@ module tb_parts_multi #(parameter CALIBRATION=1,LATENCY_TEST=0);
     if(hits[k]) $fatal(1,"duplicate object box");hits[k]=1;
     if(item[54:52]!==expected_shape[k] || item[51:49]!==expected_colour[k])
       $fatal(1,"frame%0d object%0d shape%0d colour%0d expected%0d/%0d raw%h",frames,k,item[54:52],item[51:49],expected_shape[k],expected_colour[k],item);
-    if(item[43:33]<ox[k]-80 || item[32:22]>ox[k]+80 || item[21:11]<oy[k]-80 || item[10:0]>oy[k]+80)
-      $fatal(1,"wrong component bounds");
+    bound_margin=ambient ? 104:80;
+    if(item[43:33]<ox[k]-bound_margin || item[32:22]>ox[k]+bound_margin ||
+       item[21:11]<oy[k]-bound_margin || item[10:0]>oy[k]+bound_margin)
+      $fatal(1,"wrong component bounds object%0d got%0d,%0d,%0d,%0d centre%0d,%0d margin%0d",
+        k,item[43:33],item[32:22],item[21:11],item[10:0],ox[k],oy[k],bound_margin);
    end
   end
-  if(n!=expected_count || count!=expected_count) $fatal(1,"frame%0d boxes%0d count%0d expected%0d candidates%0d",frames,n,count,expected_count,dut.multi_count);
+  if(expected_count>=0 && (n!=expected_count || count!=expected_count))
+   $fatal(1,"frame%0d boxes%0d count%0d expected%0d candidates%0d",frames,n,count,expected_count,dut.multi_count);
   $display("PASS multi frame%0d boxes%0d overflow%0d cycles%0d",frames,n,overflow,cycles);frames=frames+1;
   repeat(10) @(negedge clk);
  end endtask
@@ -139,11 +159,22 @@ module tb_parts_multi #(parameter CALIBRATION=1,LATENCY_TEST=0);
   ox[3]=480;oy[3]=336;kind[3]=3;colours[3]=24'hb89648;expected_shape[3]=1;expected_colour[3]=6;
   ox[4]=320;oy[4]=224;kind[4]=1;colours[4]=24'hb8b8b8;expected_shape[4]=2;expected_colour[4]=5;
   repeat(5) @(negedge clk);rst=1;
+  if(SOLID_ONLY) begin
+   active=1;kind[0]=1;observe(0,0,0);observe(0,0,0);observe(1,1,0);
+   kind[0]=5;observe(0,0,0);observe(0,0,0);observe(0,0,0);
+   $display("ALL PASS solid silver disc is not promoted to a washer");$finish;
+  end
+  if(AMBIENT_ONLY) begin
+   ambient=1;active=0;observe(0,0,0);active=4;
+   observe(0,0,0);observe(0,0,0);observe(1,-1,0);observe(1,4,0);
+   $display("ALL PASS ambient white paper: four shapes/colours separated from broad soft shadows");$finish;
+  end
   observe(0,0,0);observe(0,0,0);observe(1,4,0);
   colours[1]=24'hb89648;expected_colour[1]=0;observe(1,4,0);
   expected_colour[1]=6;observe(1,4,0);
   kind[0]=0;observe(1,3,0); // slot indices change; surviving histories must follow positions.
-  kind[0]=1;observe(1,3,0);observe(1,3,0);observe(1,4,0);
+  // A one-publication miss retains the confirmed ID, class and matching colour.
+  kind[0]=1;observe(1,4,0);observe(1,4,0);observe(1,4,0);
   if(CALIBRATION) begin
   // Historical opt-in calibration mode still has independent shape confirmation.
   ready=0;epoch=1;for(j=0;j<4;j=j+1) expected_colour[j]=0;
@@ -158,9 +189,20 @@ module tb_parts_multi #(parameter CALIBRATION=1,LATENCY_TEST=0);
    epoch=1;observe(1,4,0);ready=1;epoch=2;observe(1,4,0);
    ready=0;change_context_mid_batch=1;observe(1,4,0);observe(1,4,0);
   end
-  active=5;observe(1,3,1);observe(1,3,1);observe(1,4,1);
+  // Four persistent IDs cannot evict a two-miss protected identity to admit a fifth object.
+  // NG/overflow stays visible; after expiry, a replacement needs three real observations.
+  active=5;observe(1,3,1);observe(1,3,1);observe(1,3,1);
+  observe(1,3,1);observe(1,3,1);observe(1,4,1);
   active=0;observe(0,0,0);active=4;no_board=1;observe(0,0,0);
-  no_board=0;active=1;kind[0]=5;observe(0,0,0);observe(0,0,0);observe(0,0,0);
+  if(BACKLIT_ONLY) begin
+   if(LATENCY_TEST && (latency_checks!=frames || skipped_starts!=frames)) $fatal(1,"missing backlit latency/skipped-frame checks");
+   $display("ALL PASS backlit multi: four shapes/colours, confirmation, hue changes, removal/reorder, overflow, empty/no board; latency checks%0d",latency_checks);$finish;
+  end
+  // Remove the backlight: full-frame paper and soft cast shadows must still
+  // yield four separate objects instead of one deformed shadow component.
+  no_board=0;ambient=1;active=0;observe(0,0,0);active=4;
+  observe(0,0,0);observe(0,0,0);observe(1,-1,0);observe(1,4,0);ambient=0;
+  active=1;kind[0]=5;observe(0,0,0);observe(0,0,0);observe(0,0,0);
   if(LATENCY_TEST && (latency_checks!=frames || skipped_starts!=frames)) $fatal(1,"missing batch latency/skipped-frame checks");
   $display("ALL PASS multi: four shapes/colours, independent confirmation, hue change, removal/reorder, calibration epoch, overflow, empty/no board, unsupported silhouette; latency checks%0d",latency_checks);$finish;
  end
@@ -173,4 +215,20 @@ endmodule
 
 module tb_parts_multi_latency;
  tb_parts_multi #(.CALIBRATION(0),.LATENCY_TEST(1)) test();
+endmodule
+
+module tb_parts_multi_backlit;
+ tb_parts_multi #(.CALIBRATION(0),.BACKLIT_ONLY(1)) test();
+endmodule
+
+module tb_parts_multi_backlit_latency;
+ tb_parts_multi #(.CALIBRATION(0),.LATENCY_TEST(1),.BACKLIT_ONLY(1)) test();
+endmodule
+
+module tb_parts_ambient_shadows;
+ tb_parts_multi #(.CALIBRATION(0),.AMBIENT_ONLY(1)) test();
+endmodule
+
+module tb_parts_solid_rejection;
+ tb_parts_multi #(.CALIBRATION(0),.SOLID_ONLY(1)) test();
 endmodule

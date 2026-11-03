@@ -1,0 +1,24 @@
+Functional regression: 2026-10-19
+WITHDRAWN: experimental RTL and dedicated glare scenarios have been removed from the current working tree. The following is historical evidence, not a result for current production sources.
+FIELD REJECTED: user reports BRASS classified RED and BLACK classified UNKN after this change.
+The synthetic passes below do not establish field colour accuracy. See COLOR_METHOD_REVIEW_20261019.md.
+Base commit: 4f32b30845e45f3b2d824be985bd3f7fefe208f0
+Branch: codex/colour-glare-voting; working tree colour changes, not committed
+Tools: Vivado 2025.2 XSim; no TD synthesis/P&R/bit generation or hardware verification
+
+Old RTL + new glare scenario: reproduced SILVER instead of RED (got5 expected1).
+Corrected RTL:
+tb_colour_ratios: ALL PASS relative colour ratios: 32 brightness/reference/rejection cases and back-to-back two-clock alignment
+tb_wb_reference: ALL PASS WB reference: centre ROI excludes differently lit neutral surroundings; neutral-only samples, RGB means, convergence, lock, configuration invalidation, unlock/recalibrate, clipped/dark rejection
+tb_wb_invalid: ALL PASS invalid WB: rejected/invalid locks, setting changes, unlock abort, valid-lock hold, unity fallback RGB and frame timing; audited4096
+tb_multi_overlay: ALL PASS multi overlay: four independent labels, logo pixels, EXP/GAIN/WB, probe0 frame-held CDC, removal, candidate/invalid bounds hidden
+tb_wb_probe_isp: ALL PASS WB probe ISP: actual 1280x720 centre 64x64, raw green/clipped reference, unity correction in BAD lock, 345600 packed video beats
+tb_parts_colours: ALL PASS parts colours frames36: silver/brass/red/black, highlights/shadows, hue changes, unsupported/mixed rejection, all 4 shapes, independent confirmation and removal
+tb_parts_colour_stability: ALL PASS colour stability parts: calibration gate/epoch, dim red/brass, neutral dead band, dark/clipped/mixed reasons, inner fallback, target RGB, independent shape
+tb_parts_multi: ALL PASS multi: four shapes/colours, independent confirmation, hue change, removal/reorder, calibration epoch, overflow, empty/no board, unsupported silhouette
+tb_parts_shape_pipeline: ALL PASS shape pipeline: 262144 signed coordinate pairs, bubbles, finish drain, start/reset abort, completion alignment; checks6 points262267
+tb_parts_glare: ALL PASS glare parts: 75 percent neutral reflections within/across cells, red/brass preservation, insufficient hue and washed-out rejection, silver resists coloured speckles
+
+All 10 unique regression tops passed. Synthetic RGB and vendor/camera substitutes do not prove physical lighting, timing closure or real colour accuracy.
+The final single-part fixture was recompiled and rerun after glare cases were separated into tb_parts_glare.
+Detailed logs/build caches remain in ignored sim/*validation*/ directories.

@@ -11,7 +11,7 @@ module video_modes_check #(parameter W=20,H=9,FULL=0);
     reg [23:0] expect_rgb;
     img_video_modes #(.BEATS_PER_LINE(W/4),.LINES_PER_FRAME(H)) dut(
         .I_clk(clk),.I_rst_n(rst),.I_tdata(data),.I_tvalid(v),
-        .I_tuser(sof),.I_tlast(eol),.I_mode(mode),
+        .I_tuser(sof),.I_tlast(eol),.I_mode(mode),.I_enhance(1'b0),
         .O_tdata(out),.O_tvalid(ov),.O_tuser(os),.O_tlast(ol));
     always #5 clk=~clk;
     function [23:0] pixel;

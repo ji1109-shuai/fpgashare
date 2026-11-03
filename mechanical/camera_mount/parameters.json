@@ -1,0 +1,19 @@
+{
+  "pcb_size": 34.0,
+  "hole_pitch_x": 31.0,
+  "hole_pitch_y": 31.0,
+  "pcb_hole_measured": 2.0,
+  "ring_id": 42.0,
+  "ring_height": 18.0,
+  "diametral_clearance": 0.6,
+  "lens_clearance_diameter": 30.0,
+  "flange_diameter": 52.0,
+  "flange_thickness": 3.0,
+  "boss_height": 6.0,
+  "boss_diameter": 6.5,
+  "printed_screw_hole": 2.3,
+  "nut_across_flats": 4.2,
+  "nut_pocket_depth": 2.0,
+  "coupon_thickness": 2.0,
+  "segments": 128
+}
