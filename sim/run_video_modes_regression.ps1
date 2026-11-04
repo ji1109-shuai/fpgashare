@@ -1,4 +1,4 @@
-param([string]$VivadoBin='D:/AMDDesignTools/2025.2/Vivado/bin',
+﻿param([string]$VivadoBin='D:/AMDDesignTools/2025.2/Vivado/bin',
       [string]$BuildName='video_modes_validation',
       [string[]]$Tops=@('tb_video_modes','tb_video_modes_onebeat','tb_video_modes_720p','tb_isp_video_modes','tb_video_mode_osd','tb_target_overlay','tb_video_tail_isp','tb_video_tail_isp_sobel'))
 $ErrorActionPreference='Stop'
@@ -19,6 +19,7 @@ Push-Location $build
 try {
     $rtl='../../user_source/hdl_source'
     Copy-Item "$rtl/logo_idx.hex","$rtl/logo_pal.hex" -Destination . -Force
+    Copy-Item (Join-Path $PSScriptRoot "../user_source/hdl_source/industrial_font16.hex") -Destination . -Force
     & "$vivado/bin/unwrapped/win64.o/xvlog.exe" -sv "$rtl/img_video_modes.v" '../tb_video_modes.v' `
         "$rtl/img_proj.v" "$rtl/img_otsu.v" "$rtl/img_binarize.v" "$rtl/img_morph.v" "$rtl/img_bbox.v" "$rtl/img_roi.v" `
         "$rtl/isp/isp_top.v" "$rtl/isp/data128_96/data128_96.v" "$rtl/isp/data96_128/data96_128.v" `

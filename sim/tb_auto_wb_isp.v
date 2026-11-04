@@ -12,6 +12,9 @@ module tb_auto_wb_isp;
  integer sent=0,received=0;
  wire [15:0] latency_bcd;wire latency_valid,latency_upd;
  integer latency_cycle=0,latency_start=0,latency_starts=0,latency_checks=0,latency_ticks;
+ wire [7:0] ae_luma;wire ae_valid,ae_upd;
+ reg ae_seen=0;
+ integer ae_checks=0;
  reg latency_seen=0;
  always #5 clk=~clk;
  isp_top #(.PARTS_MODE(1),.COLOR_STABILITY(0),.AUTO_WHITE_BALANCE(1),.MULTI_TARGETS(1),.VIDEO_MODES(1),.LATENCY_DIAGNOSTICS(1)) dut(
@@ -19,13 +22,22 @@ module tb_auto_wb_isp;
  .I_tvalid(valid),.I_tdest(10'd0),.O_tready(1'b1),.I_bin_en(1'b0),.I_morph_mode(2'b00),
  .I_awb_freeze(sw4),.I_camera_status(settings),.I_camera_status_upd(status_update),
  .O_wb_diag(diag),.O_color_reference(reference),.O_tvalid(ov),.O_tlast(ol),
- .O_latency_bcd(latency_bcd),.O_latency_valid(latency_valid),.O_latency_upd(latency_upd));
+ .O_latency_bcd(latency_bcd),.O_latency_valid(latency_valid),.O_latency_upd(latency_upd),
+ .O_ae_luma(ae_luma),.O_ae_valid(ae_valid),.O_ae_upd(ae_upd));
  function [7:0] gain(input [7:0] value,input [19:0] factor);
  reg [27:0] product;
  begin product=value*factor;gain=|product[27:24] ? 8'hff:product[23:16];end
  endfunction
  always @(posedge clk) begin
   if(rst) begin
+   if(ae_upd!=ae_seen) begin
+    ae_seen=ae_upd;
+    if(f>0) begin
+     if(!ae_valid || ae_luma!==(f<=3 ? 8'd168:8'd248))
+      $fatal(1,"real ISP pre-AWB AE wiring f=%0d valid=%b luma=%0d",f,ae_valid,ae_luma);
+     ae_checks=ae_checks+1;
+    end
+   end
    latency_cycle=latency_cycle+1;
    if(dut.g_tire.u_tire.capture_valid && dut.g_tire.u_tire.capture_user && dut.g_tire.u_tire.take) begin
     latency_start=latency_cycle;latency_starts=latency_starts+1;
@@ -79,6 +91,7 @@ module tb_auto_wb_isp;
   if(beats!=6*720*240 || lines!=6*720 || sent!=received || diag[19:9]!==1024 || diag[8:5]!==2)
    $fatal(1,"ISP lost stream or centre diagnostic: beats%0d lines%0d sent%0d received%0d diag%h",beats,lines,sent,received,diag);
   if(latency_starts==0) $fatal(1,"ISP latency did not see an accepted batch");
+  if(ae_checks!=5) $fatal(1,"ISP AE packet count=%0d",ae_checks);
   $display("ALL PASS automatic WB ISP: acquired despite red centre and SW4 high, HOLD after clipping/EXP event/SW4, %0d audited RGB beats, %0d packed words/%0d lines, latency starts%0d publications%0d",received,beats,lines,latency_starts,latency_checks);
   $finish;
  end

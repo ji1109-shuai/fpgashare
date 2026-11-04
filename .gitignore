@@ -32,3 +32,11 @@ sim/*validation*/
 # Windows metadata
 Thumbs.db
 desktop.ini
+
+# GitHub source distribution
+release_archive/
+**/xsim.dir/
+**/__pycache__/
+*.pyc
+td_project/*_Runs/
+td_project/log/

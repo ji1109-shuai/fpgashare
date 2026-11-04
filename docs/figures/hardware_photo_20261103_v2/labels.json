@@ -1,0 +1,173 @@
+{
+  "source": "C:\\Users\\ji'min'hao\\Pictures\\微信图片_20261103212206_158_2.jpg",
+  "crop_original_pixels": [
+    0,
+    0,
+    1660,
+    1080
+  ],
+  "items": [
+    {
+      "number": 1,
+      "name": "显示屏",
+      "leader_original_pixels": [
+        [
+          55,
+          392
+        ],
+        [
+          111,
+          392
+        ],
+        [
+          154,
+          392
+        ]
+      ]
+    },
+    {
+      "number": 2,
+      "name": "电池盒",
+      "leader_original_pixels": [
+        [
+          1300,
+          75
+        ],
+        [
+          1300,
+          145
+        ],
+        [
+          1360,
+          315
+        ]
+      ]
+    },
+    {
+      "number": 3,
+      "name": "L298N电机驱动模块",
+      "leader_original_pixels": [
+        [
+          1602,
+          110
+        ],
+        [
+          1602,
+          170
+        ],
+        [
+          1536,
+          278
+        ]
+      ]
+    },
+    {
+      "number": 4,
+      "name": "3D打印开发板盒",
+      "leader_original_pixels": [
+        [
+          1595,
+          490
+        ],
+        [
+          1630,
+          465
+        ],
+        [
+          1612,
+          419
+        ]
+      ]
+    },
+    {
+      "number": 5,
+      "name": "摄像头固定3D打印件",
+      "leader_original_pixels": [
+        [
+          1620,
+          875
+        ],
+        [
+          1620,
+          775
+        ],
+        [
+          1575,
+          687
+        ]
+      ]
+    },
+    {
+      "number": 6,
+      "name": "金属支架",
+      "leader_original_pixels": [
+        [
+          1175,
+          687
+        ],
+        [
+          1135,
+          687
+        ],
+        [
+          1128,
+          654
+        ]
+      ]
+    },
+    {
+      "number": 7,
+      "name": "传送带",
+      "leader_original_pixels": [
+        [
+          792,
+          858
+        ],
+        [
+          792,
+          919
+        ],
+        [
+          854,
+          997
+        ]
+      ]
+    },
+    {
+      "number": 8,
+      "name": "背光板",
+      "leader_original_pixels": [
+        [
+          1070,
+          1023
+        ],
+        [
+          1105,
+          963
+        ],
+        [
+          1245,
+          830
+        ]
+      ]
+    },
+    {
+      "number": 9,
+      "name": "FPGA开发板",
+      "leader_original_pixels": [
+        [
+          1090,
+          90
+        ],
+        [
+          1160,
+          160
+        ],
+        [
+          1218,
+          320
+        ]
+      ]
+    }
+  ]
+}

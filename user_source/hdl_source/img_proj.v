@@ -603,81 +603,170 @@ endmodule
 // frames only while idle; analysis may skip input frames. 8x8 majority cells,
 // 4-connected components of BOTH polarities, one visited bit per cell.
 // A hole is an enclosed BACKGROUND component, never inferred from failure.
-// Serial, one-to-one association across completed observations. History is
-// private until the batch publishes; raster slot changes do not transfer votes.
-module img_parts_multi_tracker(
+// Four persistent slots; packet[48] means observed (including probation),
+// packet[47:44]={generation,slot}. Display still uses confirmed bit 55 only.
+// One serial association datapath serves all candidates. Velocity residuals
+// use elapsed milliseconds, rather than assuming equal publication periods.
+module img_parts_multi_tracker #(
+    parameter integer CLK_HZ=112511000,
+    parameter integer MAX_MISSES=2
+)(
     input I_clk,I_rst_n,I_batch,I_start,I_publish,
     input [1:0] I_index,
     input [55:0] I_packet,
     input [7:0] I_epoch,
     output reg O_done,
-    output reg [55:0] O_packet
+    output reg [55:0] O_packet,
+    output reg O_capacity_fault
 );
+    localparam integer MS_CYCLES=(CLK_HZ/1000<1)?1:CLK_HZ/1000;
+    localparam integer MS_W=(MS_CYCLES<2)?1:$clog2(MS_CYCLES);
+    reg [MS_W-1:0] ms_div;
+    reg [15:0] now_ms,batch_ms;
     reg [55:0] previous[0:3],following[0:3];
     reg [1:0] previous_shape[0:3],following_shape[0:3];
     reg [1:0] previous_colour[0:3],following_colour[0:3];
+    reg [1:0] previous_age[0:3],following_age[0:3];
+    reg [1:0] previous_generation[0:3],following_generation[0:3];
+    reg signed [11:0] previous_dx[0:3],following_dx[0:3];
+    reg [11:0] previous_period[0:3],following_period[0:3];
+    reg [15:0] previous_time[0:3],following_time[0:3];
     reg [7:0] previous_epoch,batch_epoch;
     reg [3:0] used;
     reg [2:0] state;
-    reg [1:0] cursor,index,best;
-    reg found,eligible;
+    reg [1:0] cursor,best,free_slot;
+    reg found,free_found,eligible;
     reg [12:0] distance,best_distance;
     reg [55:0] packet;
+    reg signed [25:0] measured_product,predicted_product,residual;
+    reg [11:0] candidate_period;
+    reg [10:0] raw_dx,raw_dy,raw_dw,raw_dh;
+    reg too_old;
     integer j;
     function [10:0] delta;
         input [10:0] a,b;
         begin delta=a>=b ? a-b:b-a;end
     endfunction
+    function [3:0] period_shift;
+        input [11:0] t;
+        begin
+            casez(t)
+                12'b1???????????:period_shift=11;12'b01??????????:period_shift=10;
+                12'b001?????????:period_shift=9;12'b0001????????:period_shift=8;
+                12'b00001???????:period_shift=7;12'b000001??????:period_shift=6;
+                12'b0000001?????:period_shift=5;12'b00000001????:period_shift=4;
+                12'b000000001???:period_shift=3;12'b0000000001??:period_shift=2;
+                12'b00000000001?:period_shift=1;default:period_shift=0;
+            endcase
+        end
+    endfunction
     wire [55:0] old=previous[cursor];
-    wire [10:0] dx=delta(packet[43:33],old[43:33]);
-    wire [10:0] dy=delta(packet[21:11],old[21:11]);
-    wire [10:0] dw=delta(packet[32:22]-packet[43:33],old[32:22]-old[43:33]);
-    wire [10:0] dh=delta(packet[10:0]-packet[21:11],old[10:0]-old[21:11]);
-    wire [1:0] shape_count=found ? (previous_shape[best]<3 ? previous_shape[best]+2'd1:2'd3):2'd1;
-    wire colour_match=found && previous_epoch==batch_epoch && batch_epoch==I_epoch &&
-        packet[51:49]!=0 && packet[51:49]==previous[best][51:49];
+    wire [15:0] elapsed=batch_ms-previous_time[cursor];
+    wire [11:0] elapsed_short=elapsed==0 ? 12'd1:elapsed>4095 ? 12'd4095:elapsed[11:0];
+    wire signed [11:0] displacement=$signed({1'b0,packet[43:33]})-$signed({1'b0,old[43:33]});
+    wire [25:0] residual_abs=residual[25] ? -residual:residual;
+    wire [25:0] predicted_distance=residual_abs>>period_shift(candidate_period);
+    wire [12:0] predicted_cost=predicted_distance>8191 ? 13'h1fff:predicted_distance[12:0];
+    wire [12:0] match_cost=candidate_period!=0 && predicted_cost<raw_dx ? predicted_cost:{2'd0,raw_dx};
+    wire [1:0] selected=found ? best:free_slot;
+    wire same_shape=found && packet[54:52]==previous[best][54:52];
+    wire [1:0] shape_count=!found ? 2'd1:same_shape ?
+        (previous_shape[best]<3 ? previous_shape[best]+2'd1:2'd3):
+        (previous_shape[best]>1 ? previous_shape[best]-2'd1:2'd1);
+    wire [2:0] stable_shape=found && previous_shape[best]>1 ? previous[best][54:52]:packet[54:52];
+    wire colour_match=found && previous_epoch==batch_epoch &&
+        batch_epoch==I_epoch && packet[51:49]!=0 && packet[51:49]==previous[best][51:49];
     wire [1:0] colour_count=packet[51:49]==0 ? 2'd0:colour_match ?
         (previous_colour[best]<3 ? previous_colour[best]+2'd1:2'd3):2'd1;
+    wire [1:0] generation=found ? previous_generation[best]:previous_generation[free_slot]+2'd1;
+    wire [15:0] selected_elapsed=batch_ms-previous_time[selected];
+    always @(posedge I_clk or negedge I_rst_n) begin
+        if(!I_rst_n) begin ms_div<=0;now_ms<=0;end
+        else if(ms_div==MS_CYCLES-1) begin ms_div<=0;now_ms<=now_ms+1'b1;end
+        else ms_div<=ms_div+1'b1;
+    end
     always @(posedge I_clk or negedge I_rst_n) begin
         if(!I_rst_n) begin
-            state<=0;O_done<=0;O_packet<=0;used<=0;packet<=0;
-            previous_epoch<=0;batch_epoch<=0;cursor<=0;index<=0;best<=0;
-            found<=0;eligible<=0;distance<=0;best_distance<=0;
+            state<=0;O_done<=0;O_packet<=0;O_capacity_fault<=0;used<=0;packet<=0;
+            previous_epoch<=0;batch_epoch<=0;batch_ms<=0;cursor<=0;best<=0;free_slot<=0;
+            found<=0;free_found<=0;eligible<=0;distance<=0;best_distance<=0;
+            measured_product<=0;predicted_product<=0;residual<=0;candidate_period<=0;
+            raw_dx<=0;raw_dy<=0;raw_dw<=0;raw_dh<=0;too_old<=0;
             for(j=0;j<4;j=j+1) begin
-                previous[j]<=0;following[j]<=0;
-                previous_shape[j]<=0;following_shape[j]<=0;
-                previous_colour[j]<=0;following_colour[j]<=0;
+                previous[j]<=0;following[j]<=0;previous_shape[j]<=0;following_shape[j]<=0;
+                previous_colour[j]<=0;following_colour[j]<=0;previous_age[j]<=0;following_age[j]<=0;
+                previous_generation[j]<=0;following_generation[j]<=0;previous_dx[j]<=0;following_dx[j]<=0;
+                previous_period[j]<=0;following_period[j]<=0;previous_time[j]<=0;following_time[j]<=0;
             end
         end else begin
             O_done<=0;
             if(I_batch) begin
-                used<=0;batch_epoch<=I_epoch;state<=0;
-                for(j=0;j<4;j=j+1) begin following[j]<=0;following_shape[j]<=0;following_colour[j]<=0;end
+                used<=0;batch_epoch<=I_epoch;batch_ms<=now_ms;state<=0;O_capacity_fault<=0;
+                for(j=0;j<4;j=j+1) begin
+                    following[j]<=previous[j][55] && previous_age[j]>=MAX_MISSES ? {1'b0,previous[j][54:0]}:previous[j];following_shape[j]<=previous_shape[j];
+                    following_colour[j]<=previous_colour[j];following_dx[j]<=previous_dx[j];
+                    following_period[j]<=previous_period[j];following_time[j]<=previous_time[j];
+                    following_generation[j]<=previous_generation[j];
+                    if(previous[j][55]) begin
+                        if(previous_age[j]>=MAX_MISSES) begin following_age[j]<=0;end
+                        else following_age[j]<=previous_age[j]+1'b1;
+                    end else following_age[j]<=0;
+                end
             end else if(I_publish) begin
                 previous_epoch<=batch_epoch;
                 for(j=0;j<4;j=j+1) begin
-                    previous[j]<=following[j];previous_shape[j]<=following_shape[j];previous_colour[j]<=following_colour[j];
+                    previous[j]<=following[j];previous_shape[j]<=following_shape[j];
+                    previous_colour[j]<=following_colour[j];previous_age[j]<=following_age[j];
+                    previous_generation[j]<=following_generation[j];previous_dx[j]<=following_dx[j];
+                    previous_period[j]<=following_period[j];previous_time[j]<=following_time[j];
                 end
             end else case(state)
                 0:if(I_start) begin
-                    packet<=I_packet;index<=I_index;cursor<=0;found<=0;best_distance<=13'h1fff;state<=1;
+                    packet<=I_packet;cursor<=0;found<=0;free_found<=0;best_distance<=13'h1fff;state<=1;
                 end
                 1:begin
-                    eligible<=packet[55] && old[55] && !used[cursor] && packet[54:52]==old[54:52] &&
-                        dx<=64 && dy<=64 && dw<=32 && dh<=32;
-                    distance<={2'd0,dx}+{2'd0,dy};state<=2;
+                    // Candidate and prediction products are separately registered.
+                    measured_product<=displacement*$signed({1'b0,previous_period[cursor]});
+                    predicted_product<=previous_dx[cursor]*$signed({1'b0,elapsed_short});
+                    candidate_period<=previous_period[cursor];
+                    raw_dx<=delta(packet[43:33],old[43:33]);raw_dy<=delta(packet[21:11],old[21:11]);
+                    raw_dw<=delta(packet[32:22]-packet[43:33],old[32:22]-old[43:33]);
+                    raw_dh<=delta(packet[10:0]-packet[21:11],old[10:0]-old[21:11]);
+                    too_old<=elapsed>4095;
+                    if(!used[cursor] && !free_found && (!old[55] || elapsed>4095)) begin
+                        free_found<=1;free_slot<=cursor;
+                    end
+                    state<=2;
                 end
-                2:begin
-                    if(eligible && distance<best_distance) begin found<=1;best<=cursor;best_distance<=distance;end
-                    if(cursor==3) state<=3;else begin cursor<=cursor+1'b1;state<=1;end
-                end
+                2:begin residual<=measured_product-predicted_product;state<=3;end
                 3:begin
-                    following[index]<=packet;
-                    following_shape[index]<=packet[55] ? shape_count:2'd0;
-                    following_colour[index]<=packet[55] ? colour_count:2'd0;
-                    if(found) used[best]<=1;
-                    O_packet<={packet[55] && shape_count>=3,packet[54:52],
-                        colour_count>=2 && batch_epoch==I_epoch ? packet[51:49]:3'd0,packet[48:0]};
+                    eligible<=packet[55] && old[55] && !used[cursor] && !too_old &&
+                        raw_dx<=512 && raw_dy<=64 && raw_dw<=32 && raw_dh<=32 &&
+                        (raw_dx<=128 || (candidate_period!=0 && predicted_distance<=96));
+                    distance<=match_cost+{2'd0,raw_dy}+
+                        (packet[54:52]==old[54:52] ? 13'd0:13'd32);state<=4;
+                end
+                4:begin
+                    if(eligible && distance<best_distance) begin found<=1;best<=cursor;best_distance<=distance;end
+                    if(cursor==3) state<=5;else begin cursor<=cursor+1'b1;state<=1;end
+                end
+                5:begin
+                    O_packet<=0;
+                    if(packet[55]) begin
+                        if(found || free_found) begin
+                            following[selected]<={1'b1,stable_shape,packet[51:0]};
+                            following_shape[selected]<=shape_count;following_colour[selected]<=colour_count;
+                            following_age[selected]<=0;following_generation[selected]<=generation;
+                            following_dx[selected]<=found ?
+                                $signed({1'b0,packet[43:33]})-$signed({1'b0,previous[selected][43:33]}):12'sd0;
+                            following_period[selected]<=!found ? 12'd0:selected_elapsed==0 ? 12'd1:
+                                selected_elapsed>4095 ? 12'd4095:selected_elapsed[11:0];
+                            following_time[selected]<=batch_ms;used[selected]<=1;
+                            O_packet<={shape_count>=3 && packet[54:52]==stable_shape,stable_shape,
+                                colour_count>=2 && batch_epoch==I_epoch ? packet[51:49]:3'd0,
+                                1'b1,generation,selected,packet[43:0]};
+                        end else O_capacity_fault<=1;
+                    end
                     O_done<=1;state<=0;
                 end
                 default:state<=0;
@@ -685,6 +774,7 @@ module img_parts_multi_tracker(
         end
     end
 endmodule
+
 
 // 0.1 ms units; BCD carry increments only at the divided tick. No divider or
 // wide multiply in the pixel path. Tick value follows the camera clock report.
@@ -838,7 +928,7 @@ module img_tire #(
 
     // Store 8x8 foreground counts. Consecutive 4-pixel beats form one row
     // of a cell. Synchronous column read is available on the second beat.
-    reg [7:0] columns[0:GW-1];
+    (* ram_style="bram" *) reg [7:0] columns[0:GW-1];
     reg [7:0] column_q;
     reg half_clip;
     reg [2:0] half_count;
@@ -940,7 +1030,7 @@ module img_tire #(
     wire [2:0] blue_four={2'd0,(pc0==brass_code && vote_fg[0])}+{2'd0,(pc1==brass_code && vote_fg[1])}+{2'd0,(pc2==brass_code && vote_fg[2])}+{2'd0,(pc3==brass_code && vote_fg[3])};
     wire [2:0] black_four={2'd0,(pc0==4 && fg[0])}+{2'd0,(pc1==4 && fg[1])}+
                           {2'd0,(pc2==4 && fg[2])}+{2'd0,(pc3==4 && fg[3])};
-    reg [27:0] rgb_columns[0:GW-1];
+    (* ram_style="bram" *) reg [27:0] rgb_columns[0:GW-1];
     reg [27:0] rgb_column_q;
     reg [2:0] half_red,half_green,half_blue,half_black;
     wire [6:0] black_sum=(yy[2:0]==0 ? 7'd0 : rgb_column_q[27:21])+half_black+black_four;
@@ -971,10 +1061,17 @@ module img_tire #(
     // Totals must remain paired with the registered sum even for consecutive
     // cell completions; do not rely on the usual two-beat spacing.
     reg [6:0] cap_red_s1,cap_silver_s1,cap_brass_s1,cap_black_s1,cap_count_s1;
+    // A dark brass surface often has only a narrow chromatic reflection in
+    // each cell. Preserve that positive hue evidence when it occupies at
+    // least a quarter of the classified pixels and clearly beats red.
+    // Neutral shadow/specular pixels must not outvote it merely by being more
+    // numerous. The >=8 floor and 25% ratio reject sparse colour noise.
+    wire cap_brass_warm=cap_brass_s1>=8 && ({cap_brass_s1,2'b0}>=cap_total) &&
+        ({1'b0,cap_brass_s1}>={cap_red_s1,1'b0});
     wire [2:0] cap_parts_result=cap_total<16 ? 0 :
         (cap_majority[0] && {cap_red_s1,1'b0}>=cap_total) ? 1 :
+        cap_brass_warm ? 6 :
         (cap_majority[1] && {cap_silver_s1,1'b0}>=cap_total) ? 5 :
-        (cap_majority[2] && {cap_brass_s1,1'b0}>=cap_total) ? 6 :
         (cap_majority[3] && {cap_black_s1,1'b0}>=cap_total) ? 4 : 0;
     always @(posedge I_clk or negedge I_rst_n) begin
         if(!I_rst_n) begin
@@ -1007,7 +1104,8 @@ module img_tire #(
             end
             if(cap_pending[1]) begin
                 cap_addr_s2<=cap_addr_s1;
-                cap_data_s2<={PARTS_MODE && cap_count_s1>=56,PARTS_MODE ? cap_parts_result : cap_legacy,1'b0,cap_meta_s1};
+                cap_data_s2<={PARTS_MODE && cap_count_s1>=56,
+                    PARTS_MODE ? cap_parts_result : cap_legacy,1'b0,cap_meta_s1};
             end
         end
     end
@@ -1090,7 +1188,7 @@ module img_tire #(
 
     // RAMs have synchronous reads and no array reset. Every captured frame
     // overwrites every map cell including visited bits before analysis.
-    reg [7:0] map[0:N-1];
+    (* ram_style="bram" *) reg [7:0] map[0:N-1];
     reg [7:0] map_q;
     reg holes_phase;
     reg [AW-1:0] scan, addr;
@@ -1110,18 +1208,24 @@ module img_tire #(
     endfunction
     reg [AW-1:0] neighbor_addr;
     always @(posedge I_clk) neighbor_addr<=scale_const({24'd0,ny},GW)+nx;
-    // Closing at the 8x8-cell mask resolution bridges small reflective gaps
-    // without eroding thin washer/nut features. Component/hole analysis below
-    // rejects detached shadow islands while preserving the original shape.
+    // Backlit production mode uses the established 3x3 close operation.  It
+    // bridges one-cell reflective gaps without the costly normal-light 5x5
+    // seed expansion, which is unnecessary with the light panel under belt.
     reg morph_pass;
     reg morph_acc;
     reg [3:0] morph_tap;
     reg [6:0] morph_meta;
-    reg morph_q;
-    reg morph_scratch[0:N-1];
+    wire morph_q;
+    (* ram_style="bram" *) reg morph_scratch[0:N-1];
+    reg morph_scratch_q,morph_map_q,morph_select_q;
     reg [7:0] morph_x,morph_y;
     wire morph_tapping=state>=MORPH_REQ && state<=MORPH_USE;
     wire morph_use_scratch=morph_pass;
+    // Keep the data-selection mux after the synchronous RAM output. A mux
+    // between RAM and its read register prevents ERAM inference in TD and
+    // wastes a whole eight-LUT RAM unit for each 64 one-bit cells. The two
+    // alternatives and select are registered on the same edge as before.
+    assign morph_q=morph_select_q ? morph_scratch_q:morph_map_q;
     wire [AW-1:0] morph_addr=scale_const({24'd0,morph_y},GW)+morph_x;
     always @* begin
         morph_x=sx;morph_y=sy;
@@ -1152,20 +1256,31 @@ module img_tire #(
         (phase!=FIND_DARK || neighbor_inside) : !map_q[1]);
     wire visit_we=start_component || add_neighbor;
     wire [AW-1:0] visit_addr=start_component ? scan : neighbor_addr;
+    // Explicit priority mux gives the cell map exactly one physical write
+    // port; all data, address and write timing match the previous if/else chain.
+    wire map_clear=MULTI_TARGETS && state==MULTI_CLEAR_WRITE;
+    wire map_morph=PARTS_MODE && state==MORPH_WRITE && morph_pass;
+    wire map_reopen=WHITE_BOARD && phase==FIND_DARK && state==SCAN_CHECK && !map_q[0];
+    wire map_we=cap_pending[2] || map_clear || map_morph || visit_we || map_reopen;
+    wire [AW-1:0] map_wa=cap_pending[2] ? cap_addr_s2 :
+        map_clear || map_morph ? scan : visit_we ? visit_addr:scan;
+    wire [7:0] map_wd=cap_pending[2] ? cap_data_s2 :
+        map_clear ? {map_q[7:4],1'b0,map_q[2],map_q[0] && map_q[1],map_q[0]} :
+        map_morph ? {morph_meta,morph_acc} :
+        visit_we ? {map_q[7:4],map_q[3] | (phase==TRACE_TARGET || (WHITE_BOARD && phase==TRACE_BOARD)),map_q[2],1'b1,start_component ? map_q[0] : color} :
+        {map_q[7:2],1'b0,1'b0};
     always @(posedge I_clk) begin
         map_q<=map[map_ra];
-        if(PARTS_MODE) morph_q<=morph_use_scratch ? morph_scratch[map_ra] : map_q[0];
-        if(cap_pending[2]) map[cap_addr_s2]<=cap_data_s2;
-        else if(MULTI_TARGETS && state==MULTI_CLEAR_WRITE) map[scan]<={map_q[7:4],1'b0,map_q[2],map_q[0] && map_q[1],map_q[0]};
-        else if(PARTS_MODE && state==MORPH_WRITE && morph_pass) map[scan]<={morph_meta,morph_acc};
-        else if(visit_we) map[visit_addr]<={map_q[7:4],map_q[3] | (phase==TRACE_TARGET || (WHITE_BOARD && phase==TRACE_BOARD)),map_q[2],1'b1,start_component ? map_q[0] : color};
-        // FIND_BOARD visited every bright region, including the tire hole.
-        // Re-enable bright regions for the final enclosed-hole traversal.
-        else if(WHITE_BOARD && phase==FIND_DARK && state==SCAN_CHECK && !map_q[0])
-            map[scan]<={map_q[7:2],1'b0,1'b0};
-        if(PARTS_MODE && state==MORPH_WRITE && !morph_pass) morph_scratch[scan]<=morph_acc;
+        if(PARTS_MODE) begin
+            morph_scratch_q<=morph_scratch[map_ra];
+            morph_map_q<=map_q[0];
+            morph_select_q<=morph_use_scratch;
+        end
+        if(map_we) map[map_wa]<=map_wd;
+        if(PARTS_MODE && state==MORPH_WRITE && !morph_pass)
+            morph_scratch[scan]<=morph_acc;
     end
-    reg [15:0] queue[0:N-1];
+    (* ram_style="bram" *) reg [15:0] queue[0:N-1];
     reg [15:0] queue_q;
     reg [AW:0] head,tail;
     wire [AW-1:0] queue_wa=start_component ? {AW{1'b0}} : tail[AW-1:0];
@@ -1299,6 +1414,19 @@ module img_tire #(
         scale_const(filled,20)<=scale_const(box_area,18);
     wire screw_ok=PARTS_MODE && parts_single && parts_elongated && parts_head && bw>=2 && bh>=2 &&
         (bw>=12 || bh>=12) && scale_const(ha,8)<=filled;
+    // Back-lit brass screws can expose only a narrow warm reflection while
+    // the threaded body is split between neutral glare and deep shadow. The
+    // green-biased belt reference can also move part of that warm reflection
+    // into the RED sector. For screw geometry only, combine RED+BRASS as warm
+    // support, but still require positive BRASS evidence and reject a nearly
+    // uniform silver/black screw. A genuinely red screw has little/no BRASS
+    // and continues through the normal red rule below.
+    wire [16:0] screw_warm_votes={1'b0,vote_red}+{1'b0,vote_brass};
+    wire screw_sparse_brass=screw_ok && vote_brass>=32 &&
+        {vote_brass,5'b0}>={3'b0,parts_vote_total} &&
+        {screw_warm_votes,3'b0}>={4'b0,vote_silver} &&
+        {screw_warm_votes,3'b0}>={4'b0,vote_black} &&
+        {vote_brass,2'b0}>={2'b0,vote_red};
     wire nut_ok=PARTS_MODE && parts_single && parts_compact && parts_hole && parts_round && parts_hex;
     wire washer_ok=PARTS_MODE && parts_single && parts_compact && parts_hole && parts_round && parts_circle;
     // A rotated square fills about half its axis-aligned box; an unrotated
@@ -1321,13 +1449,14 @@ module img_tire #(
     wire confirmed=candidate && (CONFIRM_FRAMES<=1 || (same_class && streak>=CONFIRM_FRAMES-1));
     wire multi_done;
     wire [55:0] multi_packet;
+    wire multi_tracker_fault;
     wire [55:0] multi_raw={candidate,candidate_type,color_context_ok ? target_color:3'd0,5'd0,
         {bl,3'b000},{br,3'b111},{bt,3'b000},{bb,3'b111}};
     img_parts_multi_tracker tracker(.I_clk(I_clk),.I_rst_n(I_rst_n),
         .I_batch(MULTI_TARGETS && state==IDLE && frame_done),
         .I_start(MULTI_TARGETS && state==MULTI_MATCH),.I_index(multi_index),.I_packet(multi_raw),
         .I_publish(MULTI_TARGETS && state==MULTI_PUBLISH),.I_epoch(COLOR_CALIBRATION ? I_color_epoch:8'd0),
-        .O_done(multi_done),.O_packet(multi_packet));
+        .O_done(multi_done),.O_packet(multi_packet),.O_capacity_fault(multi_tracker_fault));
     function [23:0] bcd_next;
         input [23:0] value;
         integer i;
@@ -1548,9 +1677,14 @@ module img_tire #(
                     if(!color_context_ok) color_reason<=1;
                     else if(!target_ok) color_reason<=2;
                     else if(parts_vote_total<8 || scale_const(parts_vote_total,4)<vote_area) color_reason<=3;
+                    // A brass part may be mostly neutral shadow or glare.
+                    // Preserve the stricter red rule so a red/black split
+                    // stays ambiguous; brass wins at >=25% coverage when the
+                    // competing warm hue is at most half. Black/silver keep
+                    // their stronger neutral-majority requirements below.
                     else if(vote_red>=8 && scale_const(vote_red,5)>=scale_const(parts_vote_total,2) &&
                             {1'b0,vote_red}>={vote_brass,1'b0}) parts_color_choice<=1;
-                    else if(vote_brass>=8 && scale_const(vote_brass,5)>=scale_const(parts_vote_total,2) &&
+                    else if(vote_brass>=8 && scale_const(vote_brass,4)>=parts_vote_total &&
                             {1'b0,vote_brass}>={vote_red,1'b0}) parts_color_choice<=6;
                     else if(vote_silver>=8 && scale_const(vote_silver,5)>=scale_const(parts_vote_total,4)) parts_color_choice<=5;
                     // Black material may contain neutral specular patches.
@@ -1567,6 +1701,14 @@ module img_tire #(
                     candidate<=target_ok && !at_edge && class_ok;
                     candidate_type<=PARTS_MODE ? (screw_ok ? 1 : square_nut_ok ? 4 : nut_ok ? 3 : washer_ok ? 2 : 7) :
                         tire_ok ? 6 : disc_ok ? 4 : 7;
+                    // parts_shape is produced by PART_TRACE, after DECIDE has
+                    // already run. Apply the screw-only sparse-brass override
+                    // here, when screw_ok belongs to the current target rather
+                    // than the preceding target. Never replace a valid RED.
+                    if(PARTS_MODE && screw_sparse_brass && parts_color_choice!=1) begin
+                        parts_color_choice<=6;
+                        color_reason<=0;
+                    end
                     result_status<=!target_ok ? 3'd1 : at_edge ? 3'd2 : class_ok ? 3'd0 :
                         (COLOR_MODE && target_color!=0) ? 3'd4 : ha<4 ? 3'd6 : ({16'd0,second_h}<<2)>ha ? 3'd7 : !hole_ok ? 3'd3 : 3'd4;
                     state<=14;
@@ -1590,7 +1732,7 @@ module img_tire #(
                     else state<=MULTI_PUBLISH;
                 end
                 MULTI_PUBLISH: begin
-                    O_targets<=multi_build;O_target_count<={2'd0,multi_build[55]}+{2'd0,multi_build[111]}+{2'd0,multi_build[167]}+{2'd0,multi_build[223]};O_target_overflow<=multi_overflow;
+                    O_targets<=multi_build;O_target_count<={2'd0,multi_build[55]}+{2'd0,multi_build[111]}+{2'd0,multi_build[167]}+{2'd0,multi_build[223]};O_target_overflow<=multi_overflow|multi_tracker_fault;
                     O_board_valid<=board_found;O_board_bank<=build_bank;
                     O_board_x0<=board_found ? {board_l,3'b000}:0;O_board_x1<=board_found ? {board_r,3'b111}:0;
                     O_board_y0<=board_found ? {board_t,3'b000}:0;O_board_y1<=board_found ? {board_b,3'b111}:0;

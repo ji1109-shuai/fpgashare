@@ -1,6 +1,7 @@
 `timescale 1ns/1ps
 // Full 720p ISP, vendor camera/AWB substitutes from tb_isp_threshold.
 module tb_isp_video_modes;
+    `include "../industrial_tone_reference.vh"
     reg clk=0,rst=0,v=0,sof=0,bin=0;
     reg [1:0] mode=0;
     reg [95:0] rgb=0;
@@ -12,7 +13,7 @@ module tb_isp_video_modes;
     reg [2:0] active_mode;
     isp_top #(.VIDEO_MODES(1),.DEBUG_CAPTURE(1)) dut(.axi4s_video_aclk(clk),.I_rst_n(rst),
         .I_tlast(1'b0),.I_tuser(1'b0),.I_tdata(40'd0),.I_tvalid(1'b0),.I_tdest(10'd0),
-        .O_tready(1'b1),.I_bin_en(bin),.I_morph_mode(mode),.I_awb_freeze(1'b1),.O_display_mode(active_mode));
+        .O_tready(1'b1),.I_bin_en(bin),.I_morph_mode(mode),.I_enhance_strength(2'd2),.I_enhance_noise(4'd4),.I_awb_freeze(1'b1),.O_display_mode(active_mode));
     always #5 clk=~clk;
     function [23:0] pixel;
         input integer x,y;
@@ -28,11 +29,29 @@ module tb_isp_video_modes;
         reg [23:0] cc;
         begin cc=pixel(x,y);lum=cc[7:0];end
     endfunction
+    function [23:0] enhanced_reference;
+        input integer xx,yy;
+        integer base,detail,delta,g0,g1,ix,iy,wx,wy;
+        begin
+            g0=lum(xx,yy);delta=0;base=0;
+            if(xx>0 && xx<1279 && yy>0 && yy<719 && g0>16 && g0<240) begin
+                for(iy=-1;iy<=1;iy=iy+1) for(ix=-1;ix<=1;ix=ix+1) begin
+                    wx=ix==0 ? 2:1;wy=iy==0 ? 2:1;base=base+lum(xx+ix,yy+iy)*wx*wy;
+                end
+                detail=g0-base/16;
+                if((detail<0 ? -detail:detail)>4) begin
+                    delta=(detail<0 ? -detail:detail)-4;if(delta>24) delta=24;if(detail<0) delta=-delta;
+                end
+            end
+            g1=g0+delta;if(g1<0) g1=0;if(g1>255) g1=255;
+            enhanced_reference=tone_reference({g1[7:0],g1[7:0],g1[7:0]},2);
+        end
+    endfunction
     always @(posedge clk) begin
         if(rst && dut.O_frame_start) begin
             frame_starts=frame_starts+1;
-            if((m==2 || m==3) && sof) $fatal(1,"row-delayed mode reset on raw SOF");
-            if((m<2 || m>=4) && !sof) $fatal(1,"direct path lost raw early boundary");
+            if((m==2 || m==3 || m==7) && sof) $fatal(1,"row-delayed mode reset on raw SOF");
+            if((m<2 || (m>=4 && m!=7)) && !sof) $fatal(1,"direct path lost raw early boundary");
         end
         if(rst && m<2 && dut.mux_tvalid!==dut.awb_tvalid_d1)
             $fatal(1,"RGB/gray preview changed the physically verified AWB valid cadence");
@@ -42,8 +61,9 @@ module tb_isp_video_modes;
             if(m>0 && dut.mux_tuser !== (preview_pixels==0)) $fatal(1,"preview SOF");
             for(j=0;j<4;j=j+1) begin
                 px=(preview_pixels+j)%1280;py=(preview_pixels+j)/1280;
-                if(m<4) begin
+                if(m<4 || m==7) begin
                     if(m==0) expected=pixel(px,py);
+                    else if(m==7) expected=enhanced_reference(px,py);
                     else begin
                         g=lum(px,py);
                         if(m>=2) begin

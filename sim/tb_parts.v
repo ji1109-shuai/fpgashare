@@ -38,6 +38,28 @@ module tb_parts #(parameter COLOUR_TEST=0);
       end else if(surface_mode==7) begin
         // Black/silver at equal strength is intentionally ambiguous.
         surface_pixel=(px/8)%2 ? 24'h303030:24'hb8b8b8;
+      end else if(surface_mode==8) begin
+        // Dark brass screw: only 3/8 cells carry a narrow brass reflection;
+        // within those cells 3/4 of the surface is neutral shadow.
+        surface_pixel=((px/8)%8<3 && px%8<2) ? 24'hb45418:24'h202020;
+      end else if(surface_mode==9) begin
+        // Sparse warm reflections on black stay below the per-cell evidence
+        // ratio and must not turn a black part into brass.
+        surface_pixel=px%8==0 ? 24'hb45418:24'h202020;
+      end else if(surface_mode==10) begin
+        // Back-lit brass screw measured on hardware: roughly 3% brass, 9%
+        // shifted red, 62% neutral glare and 26% black shadow coarse cells.
+        if(((px/8)+(py/8)*5)%32==0) surface_pixel=24'hb45418;
+        else if(((px/8)+(py/8)*5)%32<4) surface_pixel=24'hc03838;
+        else if(((px/8)+(py/8)*5)%32<24) surface_pixel=24'hb8b8b8;
+        else surface_pixel=24'h202020;
+      end else if(surface_mode==11) begin
+        // A silver screw with one warm coarse reflection in sixteen must stay
+        // silver; sparse warm evidence alone is not enough.
+        surface_pixel=(px/8)%16==0 ? 24'hb45418:24'hb8b8b8;
+      end else if(surface_mode==12) begin
+        // The corresponding nearly-uniform black screw must stay black.
+        surface_pixel=(px/8)%16==0 ? 24'hb45418:24'h202020;
       end
     end
   endfunction
@@ -83,6 +105,16 @@ module tb_parts #(parameter COLOUR_TEST=0);
         end
         9:part_pixel=(ux>=-radius && ux<=radius && uy>=-radius*0.5 && uy<=radius*0.5 &&
                       dx*dx+dy*dy>radius*radius*0.25);
+        10:begin
+          // Hex nut whose aperture has merged into the dark foreground mask.
+          // Its silhouette is solid, so only reflective dark-metal evidence
+          // may activate the constrained outer-hex fallback.
+          part_pixel=1;
+          for(j=0;j<6;j=j+1) begin
+            t=(60*j+30)*3.141592653589793/180;
+            if(ux*$cos(t)+uy*$sin(t)>radius*$cos(3.141592653589793/6)) part_pixel=0;
+          end
+        end
         default:part_pixel=0;
       endcase
       if(damage && ((px%23==1 && py%17<3) || (dx==radius/2 && dy>0))) part_pixel=0;
@@ -197,8 +229,14 @@ module tb_parts #(parameter COLOUR_TEST=0);
       surface_mode=3;part_rgb=24'hb8b8b8;check_colour(1,2,0);check_colour(1,2,4);
       surface_mode=0;part_rgb=24'hc03838;
       check_colour(2,7,0);check_colour(2,7,1);check_colour(2,3,1);
-      part_rgb=24'hb89648;
+      // Start the sparse back-lit screw immediately after a non-screw target.
+      // This catches use of stale shape outputs before PART_TRACE completes.
+      part_rgb=24'hb89648;surface_mode=10;
       check_colour(3,7,0);check_colour(3,7,6);check_colour(3,1,6);
+      surface_mode=0;check_colour(3,1,6);
+      surface_mode=11;check_colour(3,1,0);check_colour(3,1,5);
+      surface_mode=12;check_colour(3,1,0);check_colour(3,1,4);
+      surface_mode=0;
       part_rgb=24'h303030;
       check_colour(7,7,0);check_colour(7,7,4);check_colour(7,4,4);
       surface_mode=1;check_colour(7,4,4);
@@ -212,6 +250,10 @@ module tb_parts #(parameter COLOUR_TEST=0);
       part_rgb=24'h3c332a;check_colour(7,4,0);check_colour(7,4,4);
       surface_mode=5;check_colour(7,4,4);check_colour(7,4,4);
       surface_mode=6;check_colour(7,4,4);check_colour(7,4,4);
+      surface_mode=7;check_colour(7,4,0);check_colour(7,4,0);
+      surface_mode=8;check_colour(7,4,0);check_colour(7,4,6);
+      surface_mode=9;check_colour(7,4,0);check_colour(7,4,4);
+      // Reset only colour confirmation while keeping the shape track alive.
       surface_mode=7;check_colour(7,4,0);check_colour(7,4,0);
       surface_mode=0;part_rgb=24'h000000;check_colour(7,4,0);check_colour(7,4,4);
       check_colour(0,0,0);
@@ -227,6 +269,14 @@ module tb_parts #(parameter COLOUR_TEST=0);
     radius=64;offset=0;
     confirm(2,3);
     for(angle=5;angle<60;angle=angle+5) begin offset=angle%8;check(2,3,0);end
+    // A uniformly black solid hexagon is still unsupported. With measured
+    // conveyor-like neutral highlights it is recovered as a hex nut even
+    // though the binary aperture is completely filled by shadow.
+    angle=0;offset=0;part_rgb=24'h303030;surface_mode=0;
+    check(10,7,0);check(10,7,0);check(10,7,0);
+    // Put neutral highlights in whole coarse cells, matching the production
+    // vote representation (S counts winning cells, not individual pixels).
+    surface_mode=6;confirm(10,3);surface_mode=0;
     angle=0;offset=0;damage=1;part_rgb=24'hc03838;check(2,3,0);
     damage=0;part_rgb=24'h303030;
     confirm(3,1);

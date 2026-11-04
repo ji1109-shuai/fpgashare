@@ -62,7 +62,9 @@ always@(posedge I_clk or negedge I_rst_n)
        rst_cnt <= rst_cnt; 
 
 reg  iic_req;//请求操作I2C控制器信号
-wire ic_busy; //I2C控制器忙信号 
+wire iic_busy; //I2C控制器忙信号 
+wire iic_bus_error;
+reg transaction_error; // Latch every byte NACK until this register is retried.
 reg  [31:0] wr_data;     //写数据寄存器
 reg  [1 :0] TS_S = 2'd0; //状态机寄存器
 reg  [8 :0] reg_index;   //寄存索引
@@ -77,6 +79,7 @@ always@(posedge I_clk ) begin
     if(rst_cnt[7] == 1'b0)begin //复位初始化寄存器
         reg_index  <= 9'd0;
         iic_req    <= 1'b0;
+        transaction_error <= 1'b0;
         wr_data    <= 32'd0;
         O_cfg_done <= 1'b0;
         O_ae_cfg_done <= 1'b0;
@@ -98,6 +101,7 @@ always@(posedge I_clk ) begin
         else if((O_cfg_done&O_ae_cfg_done) == 1'b0)
             TS_S <= 2'd1;           //下一个状态
         1:if(!iic_busy)begin        //当总线非忙，才可以操作I2C控制器
+            transaction_error <= 1'b0;
             iic_req  <= 1'b1;       //请求操作I2C控制器
 			wr_data[7  :0] <= CAM_ID;           //器件地址   
 			wr_data[15 :8] <= REG_DATA[23:16];  //寄存器地址-高8bit    
@@ -106,12 +110,17 @@ always@(posedge I_clk ) begin
             TS_S      <= 2'd2; //下一个状态
         end    
         2:if(iic_busy)begin
+             if(iic_bus_error) transaction_error <= 1'b1;
              iic_req  <= 1'b0;  //重置 iic_req =0
              TS_S     <= 2'd3;  //下一个状态
         end
-        3:if(!iic_busy)begin  //当总线非忙，才可以操作I2C控制器 
-			reg_index<= reg_index + 1'b1;//寄存器索引加1
+        3:begin
+          if(iic_bus_error) transaction_error <= 1'b1;
+          if(!iic_busy)begin  //当总线非忙，才可以操作I2C控制器 
+			if(!transaction_error && !iic_bus_error)
+                reg_index<= reg_index + 1'b1;//寄存器索引加1
 			TS_S    <= 2'd0;//回到初始状态
+          end
         end 
         endcase
    end
@@ -139,6 +148,7 @@ uii2c_inst
 .I_rd_cnt(8'd0),//需要读的数据BYTES
 .I_iic_mode(1'b0),//读模式设置
 .I_iic_req(iic_req),//I2C控制器请求
+.O_iic_bus_error(iic_bus_error),
 .O_iic_busy(iic_busy)//I2C控制器忙
 );
 
@@ -152,7 +162,8 @@ uics500reg uics500reg_inst
 );  
 
 wire 	[15:0] 	w_gain_val; 
-SC500GainTbl gain_tbl (.I_clk(I_clk), .I_rstn(rst_cnt[7]==1'b0), .I(I_ag - 16), .O(w_gain_val));
+wire [15:0] gain_offset=I_ag-16'd16;
+SC500GainTbl gain_tbl (.I_clk(I_clk), .I_rstn(rst_cnt[7]), .I(gain_offset[6:0]), .O(w_gain_val));
 //例化CAM AE的寄存器配置表
 uics500regAE uics500regAE_inst
 (

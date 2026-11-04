@@ -17,81 +17,27 @@ module image_correction #(
     input                             O_raw_tready
 );
 
-    reg                        I_raw_tvalid_d; 
-    reg    [DATA_WIDTH - 1:0]  I_raw_tdata_r;
-    reg    [14:0]              h_cnt,v_cnt;
-    wire                       V_valid,H_valid;
-    wire                       tuser;
-
+    // uial2axis already supplies valid-qualified SOF/EOL markers. Keep the
+    // original one-cycle data latency and pipeline those markers with data.
+    // Never infer lines from idle-clock counts: CSI blanking is variable and
+    // may exceed 256 clocks or contain gaps within an active line.
+    reg [DATA_WIDTH-1:0] data_d;
+    reg valid_d,sof_d,eol_d;
     always @(posedge I_clk or negedge I_rst_n) begin
-        if(!I_rst_n )begin
-            I_raw_tvalid_d <= 0;
-            I_raw_tdata_r  <= 0;
-        end
-        else begin
-            I_raw_tvalid_d <= I_raw_valid;
-            I_raw_tdata_r  <= I_raw_data;
-        end
-    end
-    
-    reg  [7:0] cnt;
-    always @(posedge I_clk or negedge I_rst_n) begin
-        if(!I_rst_n )begin
-            cnt <= 0;
-        end
-        else if(I_raw_valid)
-            cnt <= 0;
-        else if(!I_raw_valid)begin
-            cnt <= cnt + 1;
+        if(!I_rst_n) begin
+            data_d <= 0;
+            valid_d <= 0;
+            sof_d <= 0;
+            eol_d <= 0;
+        end else begin
+            data_d <= I_raw_data;
+            valid_d <= I_raw_valid;
+            sof_d <= I_raw_valid && I_raw_frame_start;
+            eol_d <= I_raw_valid && I_raw_frame_end;
         end
     end
-
-    wire last = (cnt == 10);
-    // 计算行数
-    always @(posedge I_clk or negedge I_rst_n) begin
-        if(!I_rst_n || I_raw_frame_start)
-            v_cnt <= 0;
-        else if(last)
-            v_cnt  <=  v_cnt + 1;
-    end
-
-    // 1280x720：每行320拍(4像素/拍)、每帧720行，与uial2axis的IMG_WIDTH/HEIGHT配对修改
-    assign V_valid = (v_cnt >= 0) && (v_cnt <= 719);
-
-    // 计算每行像素个数
-    always @(posedge I_clk or negedge I_rst_n) begin
-        if(!I_rst_n || I_raw_frame_start) 
-            h_cnt <= 0;
-        else if(last)
-            h_cnt <= 0;
-        else if(I_raw_tvalid_d)
-            h_cnt <=  h_cnt + 1;
-    end
-    assign H_valid = (h_cnt <= 319) && (h_cnt >= 0);
-    
-    assign tuser = (h_cnt == 0) && (v_cnt == 0) && I_raw_tvalid_d;
-    
-    assign O_raw_tdata  = V_valid && H_valid? I_raw_tdata_r:0;
-    assign I_raw_tready = O_raw_tready;
-    assign O_raw_tvalid = H_valid && V_valid && I_raw_tvalid_d;
-    assign O_raw_tlast  = V_valid && (h_cnt == 319) && I_raw_tvalid_d;
-    assign O_raw_tuser  = tuser;
-
-//   cwc cwc_inst
-// (
-// .probe0  (I_raw_data			),
-// .probe1  (I_raw_valid 		),
-// .probe2  (I_raw_frame_start	),
-// .probe3  (I_raw_frame_end  	),
-// .probe4  (O_raw_tdata 		),
-// .probe5  (O_raw_tlast 		),
-// .probe6  (O_raw_tvalid		),
-// .probe7  (O_raw_tuser 		),
-// .probe8  (h_cnt 				),
-// .probe9  (v_cnt 				),
-// .probe10 (cnt 				),
-// .clk	  (I_clk				)
-// );
-
-
+    assign O_raw_tdata = data_d;
+    assign O_raw_tvalid = valid_d;
+    assign O_raw_tuser = sof_d;
+    assign O_raw_tlast = eol_d;
 endmodule

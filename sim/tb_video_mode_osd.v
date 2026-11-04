@@ -22,7 +22,7 @@ module tb_video_mode_osd;
             case(m)
                 0:word_expected="RGB  ";1:word_expected="GRAY ";
                 2:word_expected="SOBEL";3:word_expected="EDGE ";
-                5:word_expected="ERODE";6:word_expected="DILAT";
+                5:word_expected="ERODE";6:word_expected="DILAT";7:word_expected="ENHN ";
                 default:word_expected="BIN  ";
             endcase
             for(i=0;i<5;i=i+1) begin

@@ -1,4 +1,14 @@
+当前整机视觉增强说明：[VISUAL_ENHANCE_20261102.md](VISUAL_ENHANCE_20261102.md)，限定 `(4)/fpgashare`；完成状态以 HANDOFF 最新节和本轮 verification.json 为准。此前工业升级基线：[INDUSTRIAL_UPGRADE_20261102.md](INDUSTRIAL_UPGRADE_20261102.md)。
+
 # 资料索引与迁移边界
+
+2026-11-01 用户明确要求不能只调GAIN，当前曝光优先版AE4见[AE_EXPOSURE_20261101.md](AE_EXPOSURE_20261101.md)：双向EXP优先、曝光边界才补GAIN，保留可调目标及16包锁定，含实际I2C曝光变化和旧策略负对照。35/35项功能、TD最终时序及默认bit同步已完成，尚未上板；最终哈希与交付状态以该文档及HANDOFF最新节为准。原[AE_TARGET_20261101.md](AE_TARGET_20261101.md)为已废弃、未交付的AE3候选。
+
+2026-11-01 现场反馈“AE为MAN、EXP/GAIN不变化”后的当前追查与修正，见 [AE_FIELD_BOOT_20261101.md](AE_FIELD_BOOT_20261101.md)：启动按键释放门控、真实CSI标记、AE2可见诊断，以及新bit与默认入口一致性核验。最终交付状态以该文档和 `HANDOFF.md` 最新节为准。
+
+2026-11-01 用户反馈仍需手调后的当前曝光行为、实际像素/I2C闭环、RAW/ISP验证及新bit交付，见 [AE_CHAIN_BOOT_20261101.md](AE_CHAIN_BOOT_20261101.md)。前一版 [AE_ONCE_AND_MOTION_20261101.md](AE_ONCE_AND_MOTION_20261101.md) 的曝光行为已被修正，其64/65像素关联限制分析保留。历史普通照明用例仍失败，不能当成当前任意背景均已验证。
+
+2026-10-25 已加入普通白纸、无背光板条件下的阴影抑制与孔洞恢复，设计和仿真边界见 [NORMAL_LIGHT_SHADOW_SEGMENTATION_20261025.md](NORMAL_LIGHT_SHADOW_SEGMENTATION_20261025.md)。
 
 本目录为工程独立协作整理必要资料。当前状态优先查根目录 `HANDOFF.md` 和实际源码；历史文档用于追溯，可能含旧目录名、旧显示时钟或当时未完成事项，不能直接作为当前配置。
 
@@ -45,3 +55,6 @@
 新 Codex 项目和队友只需要本仓库即可获取已整理的源码、当前状态、关键硬件资料与三组测试。不要假设项目移动后会自动继承旧目录权限；更换对话时优先阅读 HANDOFF.md。
 
 本次整理没有修改生产 RTL，没有运行 TD 构建，也没有自动提交或推送。新增文件上传前可以在 GitHub Desktop 中审阅。
+
+- [电机自动恢复、三档PWM与FPS（2026-11-03）](MOTOR_FPS_20261102.md)：当前(4)整机交付、恢复条件和统计口径。
+- [批次错误蜂鸣提示（2026-11-03）](BATCH_BUZZER_20261103.md)：NG短鸣、自动解除与ACK联动，保留原整机功能。

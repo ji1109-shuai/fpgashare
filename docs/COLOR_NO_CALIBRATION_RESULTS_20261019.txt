@@ -1,0 +1,51 @@
+Functional regression: 2026-10-19; removal of production white-paper/SW4 calibration prerequisite.
+FIELD FAILED / WITHDRAWN: picture turned green on hardware. Synthetic passes below do not validate sensor colour. Current production sources implement automatic neutral-sample WB instead; see AUTO_WB_20261019.md.
+Base commit: 4f32b30845e45f3b2d824be985bd3f7fefe208f0
+Branch: codex/colour-glare-voting; uncommitted working-tree changes.
+Tool: Vivado 2025.2 XSim. All three runner processes returned exit code 0.
+No TD synthesis, P&R, bit generation/download, physical timing sign-off or field colour verification.
+Camera demosaic and vendor RAM include simulation substitutes. RGB cases are synthetic.
+Failed glare experiment withdrawn; img_proj.v matches base commit.
+
+Suite: colour
+tb_parts_no_calibration_isp: ALL PASS no-calibration ISP: 921600 RGB beats unchanged, 691200 packed beats/2880 lines, SW4 and settings changes, early SOF, unity gains from boot
+tb_multi_overlay_no_calibration: ALL PASS multi overlay: four independent labels, logo pixels, EXP/GAIN/WB, probe0 frame-held CDC, removal, candidate/invalid bounds hidden
+tb_colour_ratios: ALL PASS relative colour ratios: 27 brightness/reference/rejection cases and back-to-back two-clock alignment
+tb_wb_reference: ALL PASS WB reference: centre ROI excludes differently lit neutral surroundings; neutral-only samples, RGB means, convergence, lock, configuration invalidation, unlock/recalibrate, clipped/dark rejection
+tb_colour_diagnostic_osd: ALL PASS colour diagnostic OSD: two event CDC packets, frame hold, hex RGB/votes/area/fallback/reasons including stream error
+tb_colour_diagnostic_raster: ALL PASS diagnostic raster: 71680 pixels, 7 rows of independent expected text, hex numbers, unchanged background and output timing
+tb_colour_stream_error: ALL PASS malformed colour stream: missing EOL clears colour and diagnostic statistics, publishes STREAM
+tb_awb: === ALL PASS ===
+tb_wb_invalid: ALL PASS invalid WB: rejected/invalid locks, setting changes, unlock abort, valid-lock hold, unity fallback RGB and frame timing; audited4096
+tb_wb_probe: ALL PASS WB probe: rejected/usable/mixed raw ROI, BAD lock, actual applied gains, invalidation and 307200 unchanged video beats
+tb_wb_probe_overlay: ALL PASS multi overlay: four independent labels, logo pixels, EXP/GAIN/WB, probe1 frame-held CDC, removal, candidate/invalid bounds hidden
+tb_multi_overlay: ALL PASS multi overlay: four independent labels, logo pixels, EXP/GAIN/WB, probe0 frame-held CDC, removal, candidate/invalid bounds hidden
+tb_wb_probe_isp: ALL PASS WB probe ISP: actual 1280x720 centre 64x64, raw green/clipped reference, unity correction in BAD lock, 345600 packed video beats
+
+Suite: parts
+tb_parts_shape_pipeline: ALL PASS shape pipeline: 262144 signed coordinate pairs, bubbles, finish drain, start/reset abort, completion alignment; checks6 points262267
+tb_parts: ALL PASS parts frames69
+tb_parts_colours: ALL PASS parts colours frames36: silver/brass/red/black, highlights/shadows, hue changes, unsupported/mixed rejection, all 4 shapes, independent confirmation and removal
+tb_parts_multi_no_calibration: ALL PASS multi: four shapes/colours, independent confirmation, hue change, removal/reorder, calibration epoch, overflow, empty/no board, unsupported silhouette
+tb_parts_multi: ALL PASS multi: four shapes/colours, independent confirmation, hue change, removal/reorder, calibration epoch, overflow, empty/no board, unsupported silhouette
+
+Suite: video
+tb_video_modes: ALL PASS: 20x9 RGB/gray/Sobel/edge, pixel reference, gaps, borders, final-row drain, frame-held mode and reset
+tb_video_modes_onebeat: ALL PASS: 4x3 RGB/gray/Sobel/edge, pixel reference, gaps, borders, final-row drain, frame-held mode and reset
+tb_video_modes_720p: ALL PASS: 1280x720 RGB/gray/Sobel/edge, pixel reference, gaps, borders, final-row drain, frame-held mode and reset
+tb_isp_video_modes: ALL PASS: 8 full 720p ISP modes, reference Sobel/gray, RGB packing, final row, frame-held switches, unchanged tire recognition
+tb_video_mode_osd: ALL PASS: frame-held mode CDC and all 8 mode OSD words
+tb_target_overlay: ALL PASS: clean target-only raster, no candidate/debug frames, BLACK/RGB shape labels, label clamps, mode header, removal and frame-held CDC
+tb_video_tail_isp: ALL PASS: tight blank mode3 H720, 3 frames, independent pixels/DDR addresses, peak=428
+tb_video_tail_isp_sobel: ALL PASS: tight blank mode2 H720, 3 frames, independent pixels/DDR addresses, peak=428
+
+All 26 simulation tops passed.
+Production ISP: 921600 AWB RGB beats unchanged, 691200 packed beats and 2880 lines across four 1280x720 frames.
+Production multi-target: ready=0 and reference=0 since reset; SW4-related ready and epoch changes cannot blank valid colours.
+Production OSD: invalid reference does not force UNKN; logo and labels checked pixel by pixel.
+Video: RGB/GRAY/SOBEL/EDGE modes and independent DDR continuity/head/tail regressions passed.
+Field colour and physical timing remain unverified. Builds/logs stay in ignored sim/*validation*/ directories.
+
+SHA256 of changed production sources:
+26b58bf907e9c9a3aef92298467e71e0ad4483a235c907cfca0412e77470a924  user_source/hdl_source/design_top_wrapper.v
+b0b071561a856f2d1be5bc298a0c356e392da3f69606e942518233f15e81530c  user_source/hdl_source/isp/isp_top.v
